@@ -1,0 +1,20 @@
+{
+  "_comment": "프로젝트에 맞게 compile/test 명령어를 수정하세요. null 이면 해당 단계 SKIP.",
+
+  "compile": "./gradlew compileJava -q",
+  "test":    "./gradlew test -q",
+  "test_parser": "gradle",
+
+  "min_turns":         5,
+  "min_output_tokens": 500,
+
+  "_examples": {
+    "frontend (npm)":    { "compile": "npm run build --silent",          "test": "npm test -- --watchAll=false --passWithNoTests", "test_parser": "jest"   },
+    "frontend (pnpm)":   { "compile": "pnpm build",                      "test": "pnpm test -- --watchAll=false --passWithNoTests", "test_parser": "jest"  },
+    "python":            { "compile": null,                               "test": "python -m pytest -q --tb=no",                    "test_parser": "pytest" },
+    "terraform/infra":   { "compile": "terraform validate -no-color",    "test": null,                                             "test_parser": null    },
+    "design/pd (no code)":{ "compile": null,                             "test": null,                                             "test_parser": null    },
+    "go":                { "compile": "go build ./...",                   "test": "go test ./... -v 2>&1 | tail -5",                "test_parser": "go"    },
+    "rust":              { "compile": "cargo build -q 2>&1 | tail -3",   "test": "cargo test -q 2>&1 | tail -5",                   "test_parser": "rust"  }
+  }
+}

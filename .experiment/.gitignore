@@ -1,0 +1,8 @@
+experiment.db
+.setup_done
+report.html
+plans/
+__pycache__/
+collectors/__pycache__/
+runner/__pycache__/
+*.pyc

@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+# exp — 실험 실행/비교/조회/리포트 단일 진입점
+# 사용법:
+#   exp run <name> <claude|opencode> [task-id]   실험 실행
+#   exp plan <name> <claude|opencode> ["텍스트"|파일.md]  플랜 실행
+#   exp compare <run-id-a> <run-id-b>            두 실험 비교
+#   exp list                                     저장된 실험 목록
+#   exp show <run-id>                            단일 실험 상세
+#   exp plans                                    등록된 플랜 목록
+#   exp report                                   HTML 리포트 생성 + 브라우저 오픈
+#   exp serve                                    실시간 갱신 HTML 서버 실행
+#   exp rate <run-id> <1-5>                      수동 평점 입력
+#   exp analyze [--force]                        프롬프트 최적화 분석 (Haiku 모델)
+set -euo pipefail
+
+# source / direct 실행 모두 올바른 경로를 얻기 위해 BASH_SOURCE 우선 사용
+_SELF="${BASH_SOURCE[0]:-$0}"
+# BASH_SOURCE[0] 이 비어있거나 인터랙티브 쉘 이름(-zsh, -bash)이면 ZSH_SOURCE 시도
+if [[ "$_SELF" == -* || -z "$_SELF" ]]; then
+  _SELF="${ZSH_SOURCE[0]:-}"
+fi
+# 그래도 없으면 현재 디렉터리에서 추정 (최후 수단)
+if [[ -z "$_SELF" || "$_SELF" == -* ]]; then
+  _SELF="$(pwd)/.experiment/exp"
+fi
+PROJECT_DIR="$(cd "$(dirname "$_SELF")/.." && pwd)"
+EXP_DIR="$PROJECT_DIR/.experiment"
+PLANS_DIR="$EXP_DIR/plans"
+mkdir -p "$PLANS_DIR"
+
+# ── auto-setup (첫 실행 시 1회만) ────────────────────────────────────
+_auto_setup() {
+  local SENTINEL="$EXP_DIR/.setup_done"
+  [[ -f "$SENTINEL" ]] && return 0
+
+  echo "[exp] 첫 실행 감지 — 자동 설정 시작..."
+
+  # 1. python3 확인
+  if ! command -v python3 &>/dev/null; then
+    echo "[exp] ERROR: python3 를 찾을 수 없습니다. 설치 후 다시 실행하세요." >&2
+    exit 1
+  fi
+
+  # 2. .claude/hooks 디렉터리
+  mkdir -p "$PROJECT_DIR/.claude/hooks"
+
+  # 3. Stop hook 실행 권한
+  local HOOK="$PROJECT_DIR/.claude/hooks/collect_experiment.sh"
+  if [[ -f "$HOOK" ]]; then
+    chmod +x "$HOOK"
+  fi
+
+  # 4. settings.json Stop hook 등록 (idempotent)
+  local SETTINGS="$PROJECT_DIR/.claude/settings.json"
+  local HOOK_CMD="\$CLAUDE_PROJECT_DIR/.claude/hooks/collect_experiment.sh"
+
+  if [[ ! -f "$SETTINGS" ]]; then
+    mkdir -p "$(dirname "$SETTINGS")"
+    cat > "$SETTINGS" <<JSON
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOOK_CMD",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
+JSON
+    echo "[exp] settings.json 생성 완료"
+  elif ! grep -q "collect_experiment" "$SETTINGS" 2>/dev/null; then
+    python3 - <<PYEOF
+import json
+from pathlib import Path
+p = Path("$SETTINGS")
+try:
+    s = json.loads(p.read_text())
+except Exception:
+    s = {}
+stop = s.setdefault("hooks", {}).setdefault("Stop", [])
+already = any(
+    any("collect_experiment" in h.get("command","") for h in e.get("hooks",[]))
+    for e in stop
+)
+if not already:
+    stop.append({"hooks":[{"type":"command","command":"$HOOK_CMD","timeout":120}]})
+    p.write_text(json.dumps(s, indent=2, ensure_ascii=False))
+    print("[exp] settings.json Stop hook 등록 완료")
+PYEOF
+  fi
+
+  # 5. PATH 등록 (zshrc/bashrc)
+  local EXP_PATH_LINE="export PATH=\"\$PATH:$EXP_DIR\""
+  for RC in "$HOME/.zshrc" "$HOME/.bashrc"; do
+    if [[ -f "$RC" ]] && ! grep -q "experiment" "$RC" 2>/dev/null; then
+      { echo ""; echo "# experiment tool"; echo "$EXP_PATH_LINE"; } >> "$RC"
+      echo "[exp] PATH 등록: $RC"
+      break
+    elif [[ -f "$RC" ]]; then
+      break  # 이미 등록됨
+    fi
+  done
+
+  # 6. sentinel 생성 — 다음 실행부터 skip
+  touch "$SENTINEL"
+  echo "[exp] 설정 완료. runner_config.json 에서 빌드 명령을 확인하세요."
+  echo ""
+}
+_auto_setup
+
+_usage() {
+  cat <<EOF
+사용법:
+  exp run <name> <claude|opencode> [task-id]      task 실험 실행
+  exp plan <name> <claude|opencode> ["텍스트"|파일.md]
+                                                   플랜 실행 + 결과 자동 저장
+  exp compare <run-id-a> <run-id-b>               두 실험 비교
+  exp list                                         저장된 실험 목록
+  exp plans                                        등록된 플랜 목록
+  exp show <run-id>                                단일 실험 상세
+  exp analyze [--force]                            프롬프트 최적화 분석 (Haiku)
+EOF
+  exit 1
+}
+
+# 플랜 텍스트 해석: 파일 경로 or 인라인 텍스트
+_resolve_plan() {
+  local INPUT="$1"
+  if [[ -f "$INPUT" ]]; then
+    cat "$INPUT"
+  else
+    echo "$INPUT"
+  fi
+}
+
+_save_plan_output() {
+  local PLAN_NAME="$1"
+  local RUN_ID="$2"
+  local PROMPT="$3"
+  local BRANCH="$4"
+
+  local OUT_FILE="$PLANS_DIR/${PLAN_NAME}.md"
+  local TIMESTAMP
+  TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+  # 기존 파일이 있으면 append, 없으면 신규 생성
+  if [[ ! -f "$OUT_FILE" ]]; then
+    cat > "$OUT_FILE" <<MDEOF
+# Plan: ${PLAN_NAME}
+
+---
+
+MDEOF
+  fi
+
+  cat >> "$OUT_FILE" <<MDEOF
+## Run #${RUN_ID} — ${TIMESTAMP}
+
+**Branch:** \`${BRANCH}\`
+
+**Prompt:**
+\`\`\`
+${PROMPT}
+\`\`\`
+
+**결과:** \`exp show ${RUN_ID}\` 또는 \`exp compare <prev-id> ${RUN_ID}\`
+
+---
+
+MDEOF
+
+  echo "  플랜 결과 저장: $OUT_FILE (run #$RUN_ID)"
+}
+
+_run_core() {
+  local BRANCH="$1"
+  local RUNNER="$2"
+  local PROMPT="$3"
+  local MODEL="${4:-}"   # optional: opus, sonnet, haiku
+  local START
+  START=$(date +%s)
+
+  # 기본 브랜치 자동 감지 (develop → main 순으로 시도)
+  local BASE_BRANCH
+  BASE_BRANCH=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || echo "")
+  if [[ -z "$BASE_BRANCH" ]]; then
+    for candidate in develop main master; do
+      if git show-ref --verify --quiet "refs/remotes/origin/$candidate"; then
+        BASE_BRANCH="$candidate"; break
+      fi
+    done
+  fi
+  [[ -z "$BASE_BRANCH" ]] && BASE_BRANCH="main"
+
+  git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
+  # 실험 브랜치만 리셋 (기본 브랜치에서는 절대 실행 안 함)
+  if [[ "$BRANCH" != "$BASE_BRANCH" && "$BRANCH" != "main" && "$BRANCH" != "master" && "$BRANCH" != "develop" ]]; then
+    git reset --hard "origin/$BASE_BRANCH" 2>/dev/null || true
+  fi
+
+  case "$RUNNER" in
+    claude)
+      if [[ -n "$MODEL" ]]; then
+        claude --model "$MODEL" --print "$PROMPT"
+      else
+        claude --print "$PROMPT"
+      fi
+      # Stop Hook이 자동 적재 — 잠시 대기 후 최신 run ID 반환
+      sleep 1
+      python3 -c "
+import sys
+sys.path.insert(0, '$EXP_DIR/collectors')
+from store import list_runs
+runs = list_runs(1)
+print(runs[0]['id'] if runs else 0)
+"
+      ;;
+    opencode)
+      ~/.opencode/bin/opencode --prompt "$PROMPT" --standalone
+      local WALL=$(( $(date +%s) - START ))
+      python3 - <<PYEOF
+import sys
+sys.path.insert(0, "$EXP_DIR/collectors")
+from opencode_parser import get_latest_session, get_session_tokens
+from store import insert
+
+sid = get_latest_session("$PROJECT_DIR")
+tokens = get_session_tokens(sid) if sid else {}
+row_id = insert(
+    session_id=sid or "unknown", runner="opencode", tokens=tokens,
+    branch="$BRANCH", wall_clock=$WALL,
+)
+print(row_id)
+PYEOF
+      ;;
+    *)
+      echo "unknown runner: $RUNNER" >&2; exit 1 ;;
+  esac
+}
+
+_run() {
+  local NAME="${1:?name required}"
+  local RUNNER="${2:?runner required}"
+  local TASK="${3:-task-001}"
+  local MODEL=""
+  # parse --model <name> anywhere in remaining args
+  local args=("$@")
+  for i in "${!args[@]}"; do
+    if [[ "${args[$i]}" == "--model" && -n "${args[$((i+1))]+x}" ]]; then
+      MODEL="${args[$((i+1))]}"
+    fi
+  done
+  local BRANCH="feat/exp-${NAME}"
+
+  local PROMPT
+  PROMPT=$(python3 -c "
+import json, sys
+tasks = json.load(open('$EXP_DIR/config/tasks.json'))
+task = next((t for t in tasks if t['id'] == '$TASK'), None)
+if not task:
+    print('task not found: $TASK', file=sys.stderr); sys.exit(1)
+print(task['prompt'])
+")
+
+  _run_core "$BRANCH" "$RUNNER" "$PROMPT" "$MODEL"
+  echo "✓ 완료: $BRANCH ($RUNNER${MODEL:+, model=$MODEL})"
+}
+
+_plan() {
+  local NAME="${1:?plan-name required}"
+  local RUNNER="${2:?runner required (claude|opencode)}"
+  local INPUT="${3:?prompt or file required}"
+  local BRANCH="feat/plan-${NAME}-$(date +%Y%m%d%H%M%S)"
+
+  local PROMPT
+  PROMPT=$(_resolve_plan "$INPUT")
+
+  echo "▶ 플랜 실행: $NAME / $RUNNER"
+  echo "  브랜치: $BRANCH"
+
+  local RUN_ID
+  RUN_ID=$(_run_core "$BRANCH" "$RUNNER" "$PROMPT")
+
+  _save_plan_output "$NAME" "$RUN_ID" "$PROMPT" "$BRANCH"
+  echo "✓ 완료: run #$RUN_ID"
+}
+
+_compare() {
+  python3 "$EXP_DIR/compare.py" "${1:?run-id-a required}" "${2:?run-id-b required}"
+}
+
+_list() {
+  python3 - <<'PYEOF'
+import sys
+sys.path.insert(0, ".experiment/collectors")
+from store import list_runs
+
+runs = list_runs(50)
+if not runs:
+    print("저장된 실험 없음")
+    sys.exit(0)
+
+print(f"{'#':<5} {'날짜':<20} {'Runner':<10} {'Branch':<30} {'Model':<22} {'Turns':<7} {'Cost(USD)':<12} {'Compile'}")
+print("-" * 115)
+for r in runs:
+    print(f"{r['id']:<5} {r['recorded_at']:<20} {r['runner']:<10} {(r['branch'] or ''):<30} "
+          f"{(r['model'] or ''):<22} {r['turn_count']:<7} {r['billing_usd']:<12.5f} {bool(r['compile_ok'])}")
+PYEOF
+}
+
+_plans() {
+  if [[ -z "$(ls -A "$PLANS_DIR" 2>/dev/null)" ]]; then
+    echo "등록된 플랜 없음"
+    return
+  fi
+  echo ""
+  echo "저장된 플랜 결과:"
+  for f in "$PLANS_DIR"/*.md; do
+    local name
+    name=$(basename "$f" .md)
+    local count
+    count=$(grep -c "^## Run #" "$f" 2>/dev/null || echo 0)
+    echo "  $name  ($count runs)  →  $f"
+  done
+}
+
+_show() {
+  local ID="${1:?run-id required}"
+  python3 - <<PYEOF
+import sys
+sys.path.insert(0, ".experiment/collectors")
+from store import compare_runs
+
+a, _ = compare_runs($ID, $ID)
+if not a:
+    print(f"run #$ID 없음")
+    sys.exit(1)
+print(f"\n=== run #$ID ===")
+for k, v in a.items():
+    if v or v == 0:
+        print(f"  {k:<28} {v}")
+PYEOF
+}
+
+_report() {
+  python3 "$EXP_DIR/report.py"
+}
+
+_serve() {
+  local PORT="${1:-7788}"
+  echo "실시간 리포트 서버: http://localhost:$PORT"
+  echo "Ctrl+C 로 종료"
+  python3 "$EXP_DIR/server.py" "$PORT"
+}
+
+_rate() {
+  local ID="${1:?run-id required}"
+  local SCORE="${2:?score 1-5 required}"
+  python3 - <<PYEOF
+import sys
+sys.path.insert(0, "$EXP_DIR/collectors")
+from store import rate_run
+rate_run($ID, $SCORE)
+print(f"run #$ID → 평점 $SCORE 저장")
+PYEOF
+}
+
+_analyze() {
+  local FORCE=""
+  [[ "${1:-}" == "--force" ]] && FORCE="--force"
+  echo "▶ 분석 시작 (model=haiku${FORCE:+, 강제 재분석})"
+  python3 "$EXP_DIR/collectors/analyzer.py" $FORCE
+}
+
+CMD="${1:-}"
+[[ $# -gt 0 ]] && shift
+
+case "$CMD" in
+  run)     _run "$@" ;;
+  plan)    _plan "$@" ;;
+  compare) _compare "$@" ;;
+  list)    _list ;;
+  plans)   _plans ;;
+  show)    _show "$@" ;;
+  report)  _report ;;
+  serve)   _serve "$@" ;;
+  rate)    _rate "$@" ;;
+  analyze) _analyze "$@" ;;
+  *)       _usage ;;
+esac

@@ -1,0 +1,3751 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>AI Token Monitoring & Efficiency Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0b0e18;
+            color: #c9d1e0;
+            font-size: 13px;
+            overflow-x: hidden
+        }
+
+        /* ── header ── */
+        header {
+            padding: 14px 32px;
+            border-bottom: 1px solid #1e2535;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            background: #0f1320
+        }
+
+        header h1 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #48bb78;
+            display: inline-block;
+            margin-right: 6px;
+            animation: pulse 2s infinite
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1
+            }
+            50% {
+                opacity: .3
+            }
+        }
+
+        .hcontrols {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-left: auto
+        }
+
+        select {
+            background: #1a2035;
+            border: 1px solid #2d3748;
+            color: #c9d1e0;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer
+        }
+
+        .filter-btn {
+            background: #1a2035;
+            border: 1px solid #2d3748;
+            color: #718096;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all .15s
+        }
+
+        .filter-btn.active, .filter-btn:hover {
+            background: #2a3550;
+            border-color: #63b3ed;
+            color: #63b3ed
+        }
+
+        #status {
+            font-size: 11px;
+            color: #4a5568;
+            white-space: nowrap
+        }
+
+        /* ── layout ── */
+        .page {
+            padding: 20px 32px 40px;
+            display: grid;
+            gap: 20px
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns:repeat(4, 1fr);
+            gap: 16px
+        }
+
+        .charts-row {
+            display: grid;
+            grid-template-columns:1fr 1fr;
+            gap: 20px
+        }
+
+        .charts-row3 {
+            display: grid;
+            grid-template-columns:1fr 1fr 1fr;
+            gap: 20px
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns:repeat(3, 1fr);
+            gap: 20px
+        }
+
+        /* 인사이트 카드: 규칙이력 + config이력 + AI분석 */
+        .insights-grid {
+            display: grid;
+            grid-template-columns:repeat(3, 1fr);
+            gap: 20px
+        }
+
+        /* 테이블 스크롤 wrapper */
+        .table-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch
+        }
+
+        /* ── card ── */
+        .card {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            padding: 18px
+        }
+
+        .card-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            margin-bottom: 14px
+        }
+
+        /* ── KPI cards ── */
+        .kpi-val {
+            font-size: 28px;
+            font-weight: 700;
+            color: #63b3ed;
+            letter-spacing: -.5px
+        }
+
+        .kpi-sub {
+            font-size: 11px;
+            color: #4a5568;
+            margin-top: 3px
+        }
+
+        .kpi-delta {
+            font-size: 11px;
+            margin-top: 6px;
+            font-weight: 600
+        }
+
+        .kpi-delta.up {
+            color: #48bb78
+        }
+
+        .kpi-delta.down {
+            color: #fc8181
+        }
+
+        .kpi-delta.neutral {
+            color: #718096
+        }
+
+        .kpi-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px
+        }
+
+        .kpi-bar-seg {
+            height: 4px;
+            border-radius: 2px;
+            flex: 1
+        }
+
+        /* ── table ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px
+        }
+
+        th {
+            text-align: left;
+            padding: 8px 12px;
+            color: #9ca3af;
+            border-bottom: 1px solid #1e2535;
+            font-weight: 500;
+            white-space: nowrap;
+            font-size: 11px
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #111827;
+            vertical-align: middle
+        }
+
+        tr.data-row {
+            cursor: pointer
+        }
+
+        tr.data-row:hover td {
+            background: #1a2035
+        }
+
+        tr.expanded-detail td {
+            background: #0f1724;
+            padding: 0
+        }
+
+        .detail-inner {
+            padding: 16px 20px;
+            display: grid;
+            grid-template-columns:1fr 1fr;
+            gap: 12px
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 99px;
+            font-size: 10px
+        }
+
+        .badge.ok {
+            background: #1c4532;
+            color: #9ae6b4
+        }
+
+        .badge.fail {
+            background: #2d1515;
+            color: #feb2b2
+        }
+
+        .badge.na {
+            background: #1e2535;
+            color: #4a5568
+        }
+
+        .badge.partial {
+            background: #2d2206;
+            color: #f6ad55
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: #1e2535;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #90cdf4;
+            font-size: 10px
+        }
+
+        /* insights-grid 카드 균등 높이 */
+        .insights-grid {
+            align-items: stretch
+        }
+
+        .insights-grid .card {
+            display: flex;
+            flex-direction: column
+        }
+
+        /* 분석카드 버튼 */
+        .ana-btn {
+            background: #1a2035;
+            border: 1px solid #2d3748;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: border-color .15s, background .15s, color .15s
+        }
+
+        .ana-btn:hover {
+            background: #1e2a45;
+            border-color: #4a5568
+        }
+
+        .ana-btn:active {
+            background: #252f4a
+        }
+
+        .ana-btn-hist {
+            color: #718096
+        }
+
+        .ana-btn-hist.active {
+            color: #63b3ed;
+            border-color: #63b3ed
+        }
+
+        .ana-btn-run {
+            color: #63b3ed
+        }
+
+        .ana-btn-run:hover {
+            border-color: #63b3ed
+        }
+
+        .ana-btn-force {
+            color: #f6ad55
+        }
+
+        .ana-btn-force:hover {
+            border-color: #f6ad55
+        }
+
+        /* 분석카드 모델 배지 */
+        .ana-model-badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: monospace;
+            background: rgba(183, 148, 244, 0.15);
+            color: #b794f4;
+            border: 1px solid rgba(183, 148, 244, 0.3)
+        }
+
+        /* rules 태그 wrap */
+        .rules-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding-top: 4px
+        }
+
+        .diff-pos {
+            color: #48bb78
+        }
+
+        .diff-neg {
+            color: #fc8181
+        }
+
+        .cost-delta {
+            font-size: 11px;
+            font-weight: 600
+        }
+
+        .cost-delta.save {
+            color: #48bb78
+        }
+
+        .cost-delta.inc {
+            color: #fc8181
+        }
+
+        .rating-btn {
+            cursor: pointer;
+            background: none;
+            border: 1px solid #2d3748;
+            color: #4a5568;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 10px;
+            margin-right: 2px
+        }
+
+        .rating-btn:hover {
+            border-color: #63b3ed;
+            color: #63b3ed
+        }
+
+        .stars {
+            color: #ecc94b;
+            font-size: 13px
+        }
+
+        .baseline-badge {
+            display: inline-block;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 700;
+            background: rgba(237, 137, 54, .15);
+            color: #ed8936;
+            border: 1px solid rgba(237, 137, 54, .35);
+            letter-spacing: .04em;
+            margin-right: 4px;
+            vertical-align: middle
+        }
+
+        .baseline-btn {
+            cursor: pointer;
+            background: none;
+            border: 1px solid #2d3748;
+            color: #4a5568;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .03em;
+            transition: all .15s
+        }
+
+        .baseline-btn.active {
+            border-color: #ed8936;
+            color: #ed8936;
+            background: rgba(237, 137, 54, .1)
+        }
+
+        .baseline-btn:hover {
+            border-color: #ed8936;
+            color: #ed8936
+        }
+
+        tr.baseline-row td {
+            border-left: 2px solid rgba(237, 137, 54, .6)
+        }
+
+        .after-btn {
+            cursor: pointer;
+            background: none;
+            border: 1px solid #2d3748;
+            color: #4a5568;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .03em;
+            transition: all .15s;
+            margin-left: 3px
+        }
+
+        .after-btn.active {
+            border-color: #68d391;
+            color: #68d391;
+            background: rgba(104, 211, 145, .1)
+        }
+
+        .after-btn:hover {
+            border-color: #68d391;
+            color: #68d391
+        }
+
+        tr.after-row td {
+            border-left: 2px solid rgba(104, 211, 145, .5)
+        }
+
+        .after-badge {
+            display: inline-block;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 700;
+            background: rgba(104, 211, 145, .15);
+            color: #68d391;
+            border: 1px solid rgba(104, 211, 145, .3);
+            letter-spacing: .04em;
+            margin-right: 4px;
+            vertical-align: middle
+        }
+
+        .seq-compare-btn {
+            cursor: pointer;
+            background: none;
+            border: 1px solid #4a5568;
+            color: #718096;
+            border-radius: 4px;
+            padding: 2px 10px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .03em;
+            transition: all .15s;
+            margin-left: 8px
+        }
+
+        .seq-compare-btn:hover {
+            border-color: #63b3ed;
+            color: #63b3ed
+        }
+
+        .seq-compare-btn.active {
+            border-color: #63b3ed;
+            color: #63b3ed;
+            background: rgba(99, 179, 237, .1)
+        }
+
+        .seq-step-bar {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 0 2px;
+            flex-wrap: wrap
+        }
+
+        .seq-step-bar.visible {
+            display: flex
+        }
+
+        .seq-step-btn {
+            cursor: pointer;
+            background: none;
+            border: 1px solid #2d3748;
+            color: #4a5568;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 10px;
+            transition: all .15s;
+            min-width: 36px;
+            text-align: center
+        }
+
+        .seq-step-btn:hover {
+            border-color: #63b3ed;
+            color: #63b3ed
+        }
+
+        .seq-step-btn.active {
+            border-color: #63b3ed;
+            color: #63b3ed;
+            background: rgba(99, 179, 237, .12);
+            font-weight: 700
+        }
+
+        .seq-after-label {
+            font-size: 10px;
+            color: #718096;
+            margin-right: 4px
+        }
+
+        .delta-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 99px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-top: 4px
+        }
+
+        .delta-badge.good {
+            background: rgba(72, 187, 120, .12);
+            color: #68d391;
+            border: 1px solid rgba(72, 187, 120, .3)
+        }
+
+        .delta-badge.bad {
+            background: rgba(252, 129, 129, .12);
+            color: #fc8181;
+            border: 1px solid rgba(252, 129, 129, .3)
+        }
+
+        .delta-badge.neutral {
+            background: #1e2535;
+            color: #718096;
+            border: 1px solid #2d3748
+        }
+
+        .model-badge {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 99px;
+            font-size: 10px;
+            font-weight: 600
+        }
+
+        .model-badge-sonnet {
+            background: rgba(99, 179, 237, .15);
+            color: #63b3ed;
+            border: 1px solid rgba(99, 179, 237, .3)
+        }
+
+        .model-badge-opus {
+            background: rgba(247, 129, 102, .15);
+            color: #f78166;
+            border: 1px solid rgba(247, 129, 102, .3)
+        }
+
+        .model-badge-haiku {
+            background: rgba(104, 211, 145, .15);
+            color: #68d391;
+            border: 1px solid rgba(104, 211, 145, .3)
+        }
+
+        .sep-row {
+            background: #1c1400
+        }
+
+        .sep-row td {
+            padding: 4px 9px;
+            font-size: 10px;
+            color: #ed8936;
+            border-left: 3px solid #ed8936
+        }
+
+        /* ── time selector modal ── */
+        .time-select-wrap {
+            display: flex;
+            gap: 6px;
+            margin-left: 8px
+        }
+
+        /* ── chart canvas ── */
+        .chart-wrap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 280px
+        }
+
+        .chart-wrap-lg {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 280px
+        }
+
+        canvas {
+            max-width: 100%
+        }
+
+        .charts-grid .card {
+            display: flex;
+            flex-direction: column
+        }
+
+        .charts-grid .card .chart-wrap, .charts-grid .card .chart-wrap-lg {
+            flex: 1
+        }
+
+        .card {
+            min-width: 0
+        }
+
+        /* ── responsive ── */
+        @media (max-width: 1400px) {
+            .page {
+                padding: 16px 20px
+            }
+
+            .kpi-row {
+                grid-template-columns:repeat(2, 1fr)
+            }
+
+            .charts-row, .charts-row3 {
+                grid-template-columns:1fr
+            }
+
+            .charts-grid {
+                grid-template-columns:repeat(2, 1fr)
+            }
+
+            .insights-grid {
+                grid-template-columns:repeat(2, 1fr)
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .charts-grid {
+                grid-template-columns:repeat(2, 1fr)
+            }
+
+            .insights-grid {
+                grid-template-columns:repeat(2, 1fr)
+            }
+        }
+
+        @media (max-width: 900px) {
+            header {
+                flex-wrap: wrap;
+                gap: 8px
+            }
+
+            .hcontrols {
+                flex-wrap: wrap;
+                margin-left: 0;
+                width: 100%
+            }
+
+            .kpi-row {
+                grid-template-columns:1fr 1fr
+            }
+
+            .detail-inner {
+                grid-template-columns:1fr
+            }
+
+            .charts-grid {
+                grid-template-columns:1fr
+            }
+
+            .insights-grid {
+                grid-template-columns:1fr
+            }
+        }
+
+        @media (max-width: 600px) {
+            .kpi-row {
+                grid-template-columns:1fr
+            }
+
+            .page {
+                padding: 10px 12px
+            }
+
+            header {
+                padding: 10px 12px
+            }
+
+            .charts-grid {
+                grid-template-columns:1fr
+            }
+
+            .insights-grid {
+                grid-template-columns:1fr
+            }
+        }
+
+        /* ── timeline ── */
+        .timeline-card {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 10px;
+            padding: 18px
+        }
+
+        .tl-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap
+        }
+
+        .tl-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: .07em
+        }
+
+        .tl-session-select {
+            background: #1a2035;
+            border: 1px solid #2d3748;
+            color: #c9d1e0;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px
+        }
+
+        .tl-badge {
+            background: #2a3550;
+            color: #63b3ed;
+            border-radius: 99px;
+            padding: 2px 9px;
+            font-size: 11px;
+            font-weight: 700
+        }
+
+        .tl-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto
+        }
+
+        .tl-play-btn {
+            background: #2a3550;
+            border: 1px solid #4a5568;
+            color: #c9d1e0;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .tl-play-btn:hover {
+            border-color: #63b3ed;
+            color: #63b3ed
+        }
+
+        .tl-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #1e2535;
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer
+        }
+
+        .tl-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #63b3ed;
+            cursor: pointer;
+            border: 2px solid #0d1117
+        }
+
+        .tl-slider-wrap {
+            flex: 1;
+            min-width: 120px
+        }
+
+        .tl-metric-grid {
+            display: grid;
+            grid-template-columns:repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 14px
+        }
+
+        .tl-metric {
+            background: #0d1117;
+            border: 1px solid #1e2535;
+            border-radius: 8px;
+            padding: 12px 14px
+        }
+
+        .tl-metric-label {
+            font-size: 10px;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 4px
+        }
+
+        .tl-metric-val {
+            font-size: 22px;
+            font-weight: 700;
+            color: #63b3ed;
+            letter-spacing: -.5px
+        }
+
+        .tl-metric-sub {
+            font-size: 10px;
+            color: #4a5568;
+            margin-top: 2px
+        }
+
+        .tl-metric-note {
+            font-size: 10px;
+            color: #718096;
+            margin-top: 2px
+        }
+
+        .tl-ctx-bar {
+            height: 18px;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+            margin-bottom: 6px
+        }
+
+        .tl-ctx-seg {
+            height: 100%;
+            transition: width .2s
+        }
+
+        .tl-ctx-legend {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap
+        }
+
+        .tl-ctx-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            color: #718096
+        }
+
+        .tl-ctx-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px
+        }
+
+        .tl-rules {
+            max-height: 120px;
+            overflow-y: auto;
+            border: 1px solid #1e2535;
+            border-radius: 6px;
+            background: #0d1117;
+            padding: 8px 10px
+        }
+
+        .tl-rule-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 0;
+            font-size: 11px;
+            color: #718096;
+            border-bottom: 1px solid #151c2b
+        }
+
+        .tl-rule-item:last-child {
+            border-bottom: none
+        }
+
+        .tl-rule-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #63b3ed;
+            flex-shrink: 0
+        }
+
+        .tl-rule-tokens {
+            margin-left: auto;
+            color: #4a5568;
+            font-size: 10px
+        }
+
+        .tl-two-col {
+            display: grid;
+            grid-template-columns:1fr 1fr;
+            gap: 12px
+        }
+
+        .tl-section-title {
+            font-size: 10px;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 6px
+        }
+
+        .tl-empty {
+            color: #4a5568;
+            font-size: 12px;
+            text-align: center;
+            padding: 24px
+        }
+
+        @media (max-width: 900px) {
+            .tl-metric-grid {
+                grid-template-columns:repeat(2, 1fr)
+            }
+
+            .tl-two-col {
+                grid-template-columns:1fr
+            }
+        }
+
+        /* ── guide drawer ── */
+        .guide-btn {
+            cursor: pointer;
+            background: none;
+            border: 1px solid #2d3748;
+            color: #718096;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all .15s;
+            white-space: nowrap
+        }
+
+        .guide-btn:hover {
+            border-color: #b794f4;
+            color: #b794f4
+        }
+
+        .guide-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .55);
+            z-index: 900;
+            backdrop-filter: blur(2px)
+        }
+
+        .guide-backdrop.open {
+            display: block
+        }
+
+        .guide-drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: 420px;
+            max-width: 95vw;
+            background: #111827;
+            border-left: 1px solid rgba(255, 255, 255, .08);
+            z-index: 901;
+            transform: translateX(100%);
+            transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden
+        }
+
+        .guide-drawer.open {
+            transform: translateX(0)
+        }
+
+        .guide-drawer-head {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #1e2535;
+            flex-shrink: 0
+        }
+
+        .guide-drawer-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e2e8f0;
+            flex: 1
+        }
+
+        .guide-close-btn {
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #4a5568;
+            font-size: 18px;
+            line-height: 1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: color .15s
+        }
+
+        .guide-close-btn:hover {
+            color: #e2e8f0
+        }
+
+        .guide-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 12px 20px 0;
+            flex-shrink: 0;
+            border-bottom: 1px solid #1e2535
+        }
+
+        .guide-tab {
+            cursor: pointer;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #4a5568;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 12px 10px;
+            transition: all .15s;
+            white-space: nowrap
+        }
+
+        .guide-tab:hover {
+            color: #c9d1e0
+        }
+
+        .guide-tab.active {
+            color: #b794f4;
+            border-bottom-color: #b794f4
+        }
+
+        .guide-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px
+        }
+
+        .guide-body::-webkit-scrollbar {
+            width: 4px
+        }
+
+        .guide-body::-webkit-scrollbar-track {
+            background: #0b0e18
+        }
+
+        .guide-body::-webkit-scrollbar-thumb {
+            background: #2d3748;
+            border-radius: 2px
+        }
+
+        .guide-section {
+            display: none
+        }
+
+        .guide-section.active {
+            display: block
+        }
+
+        .guide-h2 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin: 0 0 12px
+        }
+
+        .guide-h3 {
+            font-size: 11px;
+            font-weight: 700;
+            color: #b794f4;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin: 18px 0 8px
+        }
+
+        .guide-p {
+            font-size: 12px;
+            color: #718096;
+            line-height: 1.7;
+            margin-bottom: 10px
+        }
+
+        .guide-ul {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 12px
+        }
+
+        .guide-ul li {
+            font-size: 12px;
+            color: #c9d1e0;
+            line-height: 1.6;
+            padding: 4px 0;
+            padding-left: 14px;
+            position: relative
+        }
+
+        .guide-ul li::before {
+            content: "·";
+            position: absolute;
+            left: 0;
+            color: #4a5568
+        }
+
+        .guide-hl {
+            display: block;
+            background: rgba(183, 148, 244, .07);
+            border: 1px solid rgba(183, 148, 244, .2);
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: #c9d1e0;
+            line-height: 1.7
+        }
+
+        .guide-code {
+            display: block;
+            background: #0b0e18;
+            border: 1px solid #1e2535;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #68d391;
+            line-height: 1.8;
+            overflow-x: auto
+        }
+
+        .guide-kw {
+            color: #b794f4
+        }
+
+        .guide-str {
+            color: #f6ad55
+        }
+
+        .guide-cm {
+            color: #4a5568
+        }
+
+        /* ── inline tooltip ── */
+        .tip-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1px solid #2d3748;
+            color: #4a5568;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: default;
+            margin-left: 5px;
+            vertical-align: middle;
+            position: relative;
+            transition: border-color .15s, color .15s
+        }
+
+        .tip-icon:hover {
+            border-color: #b794f4;
+            color: #b794f4
+        }
+
+        .tip-icon .tip-box {
+            display: none;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: calc(100% + 6px);
+            width: 220px;
+            background: #1a2035;
+            border: 1px solid rgba(183, 148, 244, .25);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 11px;
+            color: #c9d1e0;
+            line-height: 1.6;
+            z-index: 800;
+            white-space: normal;
+            pointer-events: none;
+            text-transform: none;
+            letter-spacing: 0;
+            font-weight: 400
+        }
+
+        .tip-icon:hover .tip-box {
+            display: block
+        }
+    </style>
+</head>
+<body>
+<header>
+    <span class="live-dot"></span>
+    <h1>AI Token Monitoring & Efficiency Dashboard</h1>
+    <div class="hcontrols">
+        <select id="projectFilter" onchange="applyFilters()" title="레포 필터">
+            <option value="">모든 레포</option>
+        </select>
+        <select id="modelFilter" onchange="applyFilters()">
+            <option value="">모든 Runner</option>
+            <option value="claude">Claude</option>
+            <option value="opencode">opencode</option>
+        </select>
+        <div class="time-select-wrap">
+            <button class="filter-btn active" data-days="1" onclick="setDays(1,this)">24h</button>
+            <button class="filter-btn" data-days="7" onclick="setDays(7,this)">7일</button>
+            <button class="filter-btn" data-days="30" onclick="setDays(30,this)">30일</button>
+            <button class="filter-btn" data-days="0" onclick="setDays(0,this)">전체</button>
+        </div>
+        <span id="updateBadge" style="display:none;font-size:11px;padding:3px 8px;border-radius:99px;background:#2d1e00;border:1px solid #d69e2e;color:#f6c90e;cursor:pointer;white-space:nowrap" onclick="window.open('https://github.com/JHKoder/jhk_claude/releases','_blank')"></span>
+        <span id="status">연결 중…</span>
+        <button class="guide-btn" onclick="openGuide()">📖 사용법</button>
+    </div>
+</header>
+
+<!-- Guide Drawer -->
+<div class="guide-backdrop" id="guideBackdrop" onclick="closeGuide()"></div>
+<div class="guide-drawer" id="guideDrawer">
+    <div class="guide-drawer-head">
+        <span class="guide-drawer-title">📖 대시보드 사용법</span>
+        <button class="guide-close-btn" onclick="closeGuide()">✕</button>
+    </div>
+    <div class="guide-tabs">
+        <button class="guide-tab active" onclick="switchGuideTab(0,this)">1. 기본 개념</button>
+        <button class="guide-tab" onclick="switchGuideTab(1,this)">2. A-B 비교법</button>
+        <button class="guide-tab" onclick="switchGuideTab(2,this)">3. CLI 명령어</button>
+        <button class="guide-tab" onclick="switchGuideTab(3,this)">4. .claude 아키텍처</button>
+    </div>
+    <div class="guide-body">
+
+        <!-- Tab 0: 기본 개념 -->
+        <div class="guide-section active" id="guideTab0">
+            <p class="guide-h2">핵심 용어</p>
+            <span class="guide-hl"><strong
+                    style="color:#63b3ed">Run</strong> — Claude가 하나의 실험 과제를 완료한 세션 전체. 테이블의 <strong>#번호</strong>가 Run ID입니다.</span>
+            <span class="guide-hl"><strong style="color:#b794f4">Turn</strong> — 하나의 Run 안에서 Claude가 응답한 횟수. 타임라인 슬라이더 단위입니다.</span>
+            <span class="guide-hl"><strong style="color:#ed8936">BEFORE</strong> — 비교 기준 Run. <code
+                    style="color:#f6ad55">[BEFORE]</code> 버튼으로 지정하면 오른쪽 패널의 Δ 메트릭이 해당 Run 대비로 계산됩니다.</span>
+
+            <p class="guide-h3">메트릭 읽는 법</p>
+            <ul class="guide-ul">
+                <li><strong>Input 토큰</strong> — 해당 턴에서 모델이 읽은 전체 컨텍스트 크기</li>
+                <li><strong>Output 토큰</strong> — 모델이 생성한 응답 분량</li>
+                <li><strong>캐시 히트율</strong> — 이전 컨텍스트가 캐시에서 재사용된 비율 (높을수록 비용 절감)</li>
+                <li><strong>추정 비용</strong> — 모델별 단가(Opus / Sonnet / Haiku)로 자동 계산한 턴당 USD</li>
+            </ul>
+
+            <p class="guide-h3">모델 배지</p>
+            <ul class="guide-ul">
+                <li><span style="color:#f78166">■ Opus</span> — 고성능, 고비용 (기본 $15/M input)</li>
+                <li><span style="color:#63b3ed">■ Sonnet</span> — 균형형 (기본 $3/M input)</li>
+                <li><span style="color:#68d391">■ Haiku</span> — 저비용 분석용 (기본 $0.25/M input)</li>
+            </ul>
+        </div>
+
+        <!-- Tab 1: A-B 비교법 -->
+        <div class="guide-section" id="guideTab1">
+            <p class="guide-h2">Before / After 비교</p>
+            <p class="guide-p">두 Run의 토큰·비용 차이를 즉시 확인하는 워크플로우입니다.</p>
+
+            <p class="guide-h3">단일 비교</p>
+            <ul class="guide-ul">
+                <li>테이블에서 <strong>기준 Run</strong>의 <code style="color:#ed8936">[BEFORE]</code> 버튼 클릭 → 해당 행에 주황 테두리 표시
+                </li>
+                <li><strong>비교할 Run</strong> 행 클릭 → 하단 타임라인이 해당 세션으로 전환</li>
+                <li>각 카드의 <code style="color:#68d391">▼ Δ</code> 배지가 BEFORE 런 평균/턴 대비 증감을 표시</li>
+            </ul>
+
+            <p class="guide-h3">1~N 순차 비교</p>
+            <span class="guide-hl">최신 Run을 AFTER로 고정하고, 이전 모든 Run을 순서대로 비교하는 방법입니다.</span>
+            <ul class="guide-ul">
+                <li>카드 타이틀 옆 <code style="color:#63b3ed">[1~N 순차 비교]</code> 버튼 클릭</li>
+                <li>스텝 바가 나타나면 <code>[#1] [#2] … [#N]</code> 버튼으로 BEFORE를 슬라이딩</li>
+                <li>각 스텝마다 BEFORE가 교체되고 Δ 메트릭이 즉시 갱신</li>
+                <li><code>[BEFORE]</code> 버튼 직접 클릭 시 순차비교 모드 자동 종료</li>
+            </ul>
+
+            <p class="guide-h3">행 클릭 확장 패널 표시 기준</p>
+            <span class="guide-hl">행 클릭 시 확장 패널은 <strong>항상</strong> 열립니다. Before/After 수치 표시 여부는 아래 조건에 따라 다릅니다.</span>
+            <ul class="guide-ul">
+                <li><strong>Before 수치</strong> — 현재 Run보다 ID가 작은 Run이 존재할 때만 표시 (없으면 전체 <code>—</code>)</li>
+                <li><strong>Δ 변화율 배지</strong> — Before 값이 존재하고 Before 값 &gt; 0 일 때만 <code>▼/▲ X%</code> 표시</li>
+                <li><strong>비교 지표 4가지</strong> — Output 토큰 · Cache Read · 비용(USD) · Turn 수</li>
+                <li><strong>현재 실험 상세</strong> — Branch / Model / Runner / LOC+- / CLAUDE.md hash / Notes (항상 표시, 값 없으면
+                    <code>—</code>)
+                </li>
+                <li><strong>평점 버튼</strong> — 항상 표시, 클릭 시 <code>exp rate &lt;id&gt; &lt;1-5&gt;</code>와 동일 효과</li>
+            </ul>
+
+            <p class="guide-h3">타임라인 리플레이</p>
+            <ul class="guide-ul">
+                <li>▶ 버튼 또는 슬라이더로 턴 단위 재생</li>
+                <li>차트의 현재 턴 바가 강조(불투명)되고 나머지는 흐려짐</li>
+                <li>빨간 테두리 바 = 캐시 미스 감지 턴 (입력 토큰 급등)</li>
+            </ul>
+        </div>
+
+        <!-- Tab 2: CLI 명령어 -->
+        <div class="guide-section" id="guideTab2">
+            <p class="guide-h2">exp CLI 명령어</p>
+
+            <p class="guide-h3">실험 실행</p>
+            <code class="guide-code"><span class="guide-cm"># 기본 실험 (task-001)</span>
+                exp run <span class="guide-str">my-exp</span> claude
+
+                <span class="guide-cm"># 특정 모델 지정</span>
+                exp run <span class="guide-str">opus-test</span> claude task-001 --model opus
+                exp run <span class="guide-str">haiku-test</span> claude task-001 --model haiku
+
+                <span class="guide-cm"># 자유 프롬프트 플랜 실행</span>
+                exp plan <span class="guide-str">refactor</span> claude <span
+                        class="guide-str">"PaymentService N+1 수정"</span></code>
+
+            <p class="guide-h3">결과 관리</p>
+            <code class="guide-code"><span class="guide-cm"># 실험 목록 확인</span>
+                exp list
+
+                <span class="guide-cm"># 단일 실험 상세</span>
+                exp show <span class="guide-str">7</span>
+
+                <span class="guide-cm"># 두 실험 비교 (텍스트)</span>
+                exp compare <span class="guide-str">5</span> <span class="guide-str">7</span>
+
+                <span class="guide-cm"># 평점 입력 (1~5)</span>
+                exp rate <span class="guide-str">7</span> <span class="guide-str">4</span></code>
+
+            <p class="guide-h3">분석 및 서버</p>
+            <code class="guide-code"><span class="guide-cm"># 프롬프트 최적화 분석 (Haiku 사용)</span>
+                exp analyze
+
+                <span class="guide-cm"># 강제 재분석</span>
+                exp analyze --force
+
+                <span class="guide-cm"># 대시보드 서버 실행</span>
+                exp serve <span class="guide-cm"># 기본 7788 포트</span>
+                exp serve 8080 <span class="guide-cm"># 포트 지정</span></code>
+
+            <p class="guide-h3">Stop Hook 자동 저장 조건</p>
+            <ul class="guide-ul">
+                <li>Turn count ≥ 5</li>
+                <li>Output 토큰 ≥ 500</li>
+                <li>git diff 파일 변경 있음</li>
+            </ul>
+            <p class="guide-p" style="color:#4a5568">위 조건 미충족 시 자동 저장되지 않습니다. <code>store.py</code>의
+                <code>insert()</code>로 수동 삽입 가능.</p>
+        </div>
+
+        <!-- Tab 3: .claude 아키텍처 -->
+        <div class="guide-section" id="guideTab3">
+            <p class="guide-h2">.claude 아키텍처 명세</p>
+            <p class="guide-p" style="color:#4a5568;font-size:11px">Anthropic Claude Code CLI 프로젝트 하네스 공식 사양 — 실무 적용
+                기준</p>
+
+            <!-- 1. CLAUDE.md 계층 -->
+            <p class="guide-h3">1. CLAUDE.md 계층 구조</p>
+            <p class="guide-p">세션 시작 시 엔진은 아래 5개 계층을 탐색해 <strong>단일 컨텍스트로 병합</strong>한다. 하위 레벨이 상위를 덮어쓰는 것이 아니라 <strong>연쇄
+                추가</strong> 방식이므로 계층 간 모순은 엔진이 임의 선택할 수 있다.</p>
+
+            <div style="overflow-x:auto;margin-bottom:12px">
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                    <thead>
+                    <tr style="background:#111827">
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">계층</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">경로</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">범위</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">용도</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">Managed Policy</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#68d391">
+                            /etc/claude-code/CLAUDE.md
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">조직 전체</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">IT/DevOps 중앙 강제 정책</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">User Memory</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#68d391">
+                            ~/.claude/CLAUDE.md
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">개발자 전역</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">개인 코딩 스타일 · 워크플로우</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">Project Memory</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#63b3ed">
+                            ./CLAUDE.md
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">프로젝트 전체</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">아키텍처 · 테스팅 · 네이밍</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">Directory Memory</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#63b3ed">
+                            ./sub-package/CLAUDE.md
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">하위 디렉토리</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">서브 모듈 전용 규칙</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">Local Override</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#f6ad55">
+                            ./CLAUDE.local.md
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">개인 로컬</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">.gitignore 처리, 로컬 실험 메모</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="guide-h3" style="margin-top:8px">병합 규칙</p>
+            <ul class="guide-ul">
+                <li>같은 디렉토리에서 <code>CLAUDE.local.md</code> 내용이 <code>CLAUDE.md</code> 하단에 추가된다</li>
+                <li>계층 간 모순 시 모델이 임의 지침을 따를 수 있음 → 거버넌스 수립 시 사전 충돌 방지 필수</li>
+                <li>프로젝트 루트 CLAUDE.md 본문은 <strong>300줄 미만</strong>, 가급적 60–200줄 유지 (지침 과다 시 주의력 분산 + 토큰 비용 증가)</li>
+            </ul>
+
+            <p class="guide-h3">Auto Memory vs CLAUDE.md</p>
+            <div style="overflow-x:auto;margin-bottom:12px">
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                    <thead>
+                    <tr style="background:#111827">
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">구분</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">CLAUDE.md
+                        </th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">Auto Memory
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">관리 주체</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">엔지니어 직접 작성</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">Claude Code 자율 업데이트</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">내용</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">아키텍처 패턴 · 금지 지침</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">디버깅 패턴 · 에러 해결책</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">주입 방식</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">세션 시작 시 전문 로드</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">인덱스 상위 200줄 / 25 KB 자동 로드
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">인터페이스</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">텍스트 에디터 + Git</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">/memory 커맨드 · # prefix</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 2. 모듈형 규칙 -->
+            <p class="guide-h3">2. 모듈형 규칙 아키텍처</p>
+            <p class="guide-p"><code>.claude/rules/</code>는 CLAUDE.md 단일 파일 비대화를 막고 도메인별 가이드라인을 격리한다. 세션 시작 시 자동 탐색되어
+                컨텍스트에 합치된다.</p>
+            <code class="guide-code">.claude/
+                ├── rules/
+                │ ├── java-spring-rules.md <span class="guide-cm"># 백엔드 프레임워크 규칙</span>
+                │ ├── java-code-style.md <span class="guide-cm"># 코드 콘벤션</span>
+                │ ├── git.md <span class="guide-cm"># 커밋/브랜치 전략</span>
+                │ └── openapi-conventions.md <span class="guide-cm"># API 문서화 규칙</span>
+                └── hooks/</code>
+            <ul class="guide-ul">
+                <li>구체적 행동 단위로 작성 — "코드를 정돈하라" ✗ → "2칸 들여쓰기 적용", "npm test 수행" ✓</li>
+                <li><code>~/.claude/rules/*.md</code> — 모든 프로젝트에 공통 적용되는 전역 개인 규칙</li>
+                <li>로드 확인: 세션 내 <code>/memory</code> 커맨드로 로드된 파일 목록 점검</li>
+            </ul>
+
+            <!-- 3. 라이프사이클 훅 -->
+            <p class="guide-h3">3. 라이프사이클 훅</p>
+            <p class="guide-p">확률적 프롬프트 지침과 달리 도구 실행 전후에 쉘 스크립트를 <strong>결정론적</strong>으로 실행하는 하네스 제어 메커니즘.</p>
+
+            <div style="overflow-x:auto;margin-bottom:10px">
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                    <thead>
+                    <tr style="background:#111827">
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">이벤트</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">트리거 시점</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">주요 역할</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#63b3ed">PreToolUse</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">도구 실행 직전</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">사전 검증 ·
+                            {"decision":"block"}으로 차단
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#63b3ed">PostToolUse</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">도구 실행 완료 후</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">린트 에러 수집 · 다음 턴 컨텍스트 자동 수정
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#63b3ed">PermissionRequest</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">권한 승인 인터랙션</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">조건부 자동 승인 로직</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#63b3ed">PostToolUseFailure</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">도구 실행 실패</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">에러 로깅 · 복구 지침 주입</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4;font-weight:600">Stop</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">메인 에이전트 종료</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">종합 검증 · 테스트 · 릴리즈 체크 <span
+                                style="color:#68d391">← 이 대시보드 수집 시점</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <code class="guide-code">{
+                <span class="guide-str">"hooks"</span>: {
+                <span class="guide-str">"Stop"</span>: [{
+                <span class="guide-str">"hooks"</span>: [{
+                <span class="guide-kw">"type"</span>: <span class="guide-str">"command"</span>,
+                <span class="guide-kw">"command"</span>: <span class="guide-str">"$CLAUDE_PROJECT_DIR/.claude/hooks/collect_experiment.sh"</span>,
+                <span class="guide-kw">"timeout"</span>: 120
+                }]
+                }]
+                }
+                }</code>
+
+            <!-- 4. 스킬 -->
+            <p class="guide-h3">4. 스킬 시스템</p>
+            <p class="guide-p">마크다운 파일 하나 = 재사용 가능한 프롬프트 템플릿. 슬래시 명령으로 호출.</p>
+            <ul class="guide-ul">
+                <li>위치: <code>.claude/skills/&lt;name&gt;.md</code> (프로젝트) / <code>~/.claude/plugins/</code> (전역)</li>
+                <li>호출: <code>/debug</code>, <code>/tech-analysis</code> — 입력창 슬래시 prefix</li>
+                <li>skill 내 체크리스트 항목 → 에이전트가 TaskCreate로 자동 추적</li>
+            </ul>
+
+            <!-- 5. 서브에이전트 -->
+            <p class="guide-h3">5. 서브에이전트 아키텍처</p>
+            <div style="overflow-x:auto;margin-bottom:10px">
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                    <thead>
+                    <tr style="background:#111827">
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">타입</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">컨텍스트</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">적합한 작업</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">fork</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">전체 상속 (캐시 공유)</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">병렬 탐색 · 컨텍스트 격리 리서치</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">fresh</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">없음 (완전 독립)</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">긴 독립 구현 · 코드 리뷰</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">worktree</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#718096">git worktree 격리</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">파일 변경이 메인 트리에 영향 없는 작업</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 6. settings.json -->
+            <p class="guide-h3">6. settings.json 스키마</p>
+            <code class="guide-code">{
+                <span class="guide-str">"permissions"</span>: {
+                <span class="guide-str">"allow"</span>: [<span class="guide-str">"Bash(git *)"</span>, <span
+                        class="guide-str">"Read"</span>],
+                <span class="guide-str">"deny"</span>: [<span class="guide-str">"Bash(rm -rf *)"</span>]
+                },
+                <span class="guide-str">"mcpServers"</span>: {
+                <span class="guide-str">"context7"</span>: { <span class="guide-kw">"command"</span>: <span
+                        class="guide-str">"npx @context7/mcp"</span> }
+                },
+                <span class="guide-str">"env"</span>: { <span class="guide-str">"CLAUDE_CODE_ENABLE_TELEMETRY"</span>:
+                <span class="guide-str">"1"</span> }
+                }</code>
+            <ul class="guide-ul">
+                <li><code>settings.json</code> — 팀 공유 (git 관리)</li>
+                <li><code>settings.local.json</code> — 개인 오버라이드 (.gitignore)</li>
+                <li>권한 패턴: <code>Bash(git *)</code> = git 하위 명령 전체 허용</li>
+            </ul>
+
+            <!-- 7. OTel -->
+            <p class="guide-h3">7. OTel 옵저버빌리티</p>
+            <div style="overflow-x:auto;margin-bottom:10px">
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                    <thead>
+                    <tr style="background:#111827">
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">메트릭</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">레이블</th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">측정 내용</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#63b3ed">
+                            claude_code.token.usage
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#f6ad55">
+                            type: input·output·cacheRead·cacheCreation
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">토큰 소비 누적</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#63b3ed">
+                            claude_code.cost.usage
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#f6ad55">
+                            model · user.email · session.id
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">추정 API 비용 (USD)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#63b3ed">
+                            claude_code.api_request
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#f6ad55">
+                            duration_ms · tokens · cost_usd
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">API 호출 완결 시 이벤트</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#63b3ed">
+                            claude_code.lines_of_code
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;font-family:monospace;font-size:10px;color:#f6ad55">
+                            type: added · removed
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">수락된 코드 수정 라인 수</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <code class="guide-code"><span class="guide-cm"># 활성화 환경변수</span>
+                CLAUDE_CODE_ENABLE_TELEMETRY=1
+                OTEL_METRICS_EXPORTER=otlp <span class="guide-cm"># prometheus | console</span>
+                OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
+                OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer &lt;token&gt;"</code>
+            <p class="guide-p" style="font-size:10px;color:#4a5568">cacheRead 토큰은 일반 input 대비 90% 저렴. 전체 입력 중 cacheRead
+                비율을 80% 이상 유지 시 비용 대폭 절감.</p>
+
+            <!-- 8. 레이어 선택 -->
+            <p class="guide-h3">8. 레이어 선택 기준</p>
+            <div style="overflow-x:auto;margin-bottom:10px">
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                    <thead>
+                    <tr style="background:#111827">
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">무엇을 하려는가?
+                        </th>
+                        <th style="padding:5px 8px;border:1px solid #1e2535;color:#9ca3af;text-align:left">올바른 레이어</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">팀 전체가 따를 코딩 규범</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">Rules (CLAUDE.md /
+                            rules/*.md)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">저장소마다 다른 맥락 (DB 스키마, 아키텍처)
+                        </td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#b794f4">Rules — 프로젝트 레벨 CLAUDE.md
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">도구 실행 전후 자동화 (수집·검증·알림)</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#63b3ed">Hooks (settings.json)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">반복되는 작업 절차를 명령 하나로</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#68d391">Skills (/command)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">긴 독립 작업, 병렬 탐색, 컨텍스트 격리</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#f6ad55">Agents (fork / fresh /
+                            worktree)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#c9d1e0">외부 API·DB·검색 연결</td>
+                        <td style="padding:5px 8px;border:1px solid #1e2535;color:#fc8181">MCP 서버</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<div class="page">
+    <!-- KPI row -->
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <!-- 레포별 비교 차트 (레포 2개 이상일 때만 표시) -->
+    <div id="projectChartsRow" class="charts-row" style="display:none">
+        <div class="card">
+            <div class="card-title">레포별 누적 비용 (USD)</div>
+            <div class="chart-wrap"><canvas id="projectCostChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-title">레포별 평균 턴 수</div>
+            <div class="chart-wrap"><canvas id="projectTurnsChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Charts grid: 3-col desktop, 2-col laptop, 1-col mobile -->
+    <div class="charts-grid">
+        <div class="card">
+            <div class="card-title">실험별 토큰 소모</div>
+            <div class="chart-wrap">
+                <canvas id="beforeAfterChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">출력 효율성</div>
+            <div class="chart-wrap">
+                <canvas id="efficiencyChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">토큰 트렌드</div>
+            <div class="chart-wrap">
+                <canvas id="tokenTrendChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">캐시 적중률</div>
+            <div class="chart-wrap">
+                <canvas id="cacheChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">비용 vs 평점</div>
+            <div class="chart-wrap">
+                <canvas id="scatterChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">품질 지표 트렌드</div>
+            <div class="chart-wrap">
+                <canvas id="qualityChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mid-section: 규칙이력 + config이력 + AI분석 (3-col grid) -->
+    <div class="insights-grid">
+
+        <!-- Rules table -->
+        <div class="card">
+            <div class="card-title">프롬프트 규칙 변경 이력 (CLAUDE.md 스냅샷 기준)</div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>규칙 그룹</th>
+                        <th>적용일자</th>
+                        <th>실험 수</th>
+                        <th>Before 평균 토큰</th>
+                        <th>After 평균 토큰</th>
+                        <th>절감률</th>
+                        <th>Before 평균 비용</th>
+                        <th>After 평균 비용</th>
+                        <th>비용 절감</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rulesBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Config version history -->
+        <div class="card" id="configCard">
+            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>.claude 규칙 변경 이력 <span id="cfgCount" style="color:#718096;font-weight:400;font-size:10px"></span></span>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:10px;color:#4a5568">클릭 → 전체 파일 뷰어</span>
+                    <button onclick="document.getElementById('snapImportInput').click()"
+                            style="background:#1a2035;border:1px solid #2d3748;color:#68d391;padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;transition:border-color .15s"
+                            onmouseover="this.style.borderColor='#68d391'"
+                            onmouseout="this.style.borderColor='#2d3748'">↑ Import
+                    </button>
+                    <input type="file" id="snapImportInput" accept=".snap" style="display:none"
+                           onchange="importSnapshot(this)">
+                    <span id="snapImportStatus" style="font-size:10px"></span>
+                </div>
+            </div>
+            <div id="configVersions" style="display:flex;flex-direction:column;gap:0"></div>
+        </div>
+
+        <!-- Analysis card -->
+        <div class="card" id="analysisCard" style="border-left:3px solid #805ad5">
+            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>AI 프롬프트 최적화 분석 <span id="analysisMeta"
+                                           style="color:#718096;font-weight:400;font-size:10px"></span></span>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span id="analysisModelTag" class="ana-model-badge" style="display:none"></span>
+                    <button onclick="toggleAnalysisHistory()" id="histBtn" class="ana-btn ana-btn-hist">이력</button>
+                    <button onclick="runAnalysis(false)" class="ana-btn ana-btn-run">분석 실행</button>
+                    <button onclick="runAnalysis(true)" class="ana-btn ana-btn-force">강제 재분석</button>
+                </div>
+            </div>
+            <div id="analysisBody" style="color:#4a5568;font-size:12px;padding:8px 0">분석 없음 — [분석 실행] 클릭</div>
+            <div id="analysisHistory"
+                 style="display:none;margin-top:12px;border-top:1px solid #1e2535;padding-top:10px"></div>
+        </div>
+
+    </div>
+
+    <!-- Experiment detail table (full-width) -->
+    <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+            <span>실험 상세 (행 클릭 → Before/After 비교 확장)<span class="tip-icon">?<span class="tip-box">행을 클릭하면 하단 타임라인이 해당 세션으로 전환됩니다. 상세 확장 패널에서 Before/After 수치 비교를 확인하세요.</span></span></span>
+            <button class="seq-compare-btn" id="seqCompareBtn" onclick="toggleSeqCompare()">1~N 순차 비교</button>
+            <div class="seq-step-bar" id="seqStepBar">
+                <span class="seq-after-label" id="seqAfterLabel">AFTER: —</span>
+            </div>
+        </div>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>날짜</th>
+                    <th>Runner</th>
+                    <th>Branch</th>
+                    <th>Turns</th>
+                    <th>Output</th>
+                    <th>CacheR</th>
+                    <th>Cost</th>
+                    <th>비용 Δ</th>
+                    <th>Compile</th>
+                    <th>Test%</th>
+                    <th>LOC±</th>
+                    <th>Config</th>
+                    <th style="white-space:nowrap">BEFORE / Rating<span class="tip-icon">?<span class="tip-box">[BEFORE] 버튼으로 비교 기준 Run을 지정합니다. CLI로 부여한 평점(★)을 오른쪽에서 확인하세요.</span></span>
+                    </th>
+                </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Turn Timeline Slider -->
+<div style="padding:0 32px 20px" id="timelineSection">
+    <div class="timeline-card">
+        <div class="tl-header">
+            <span class="tl-title">턴별 컨텍스트 리플레이 타임라인</span>
+            <select class="tl-session-select" id="tlSessionSelect" onchange="tlLoadSession(this.value)">
+                <option value="">세션 선택…</option>
+            </select>
+            <span class="tl-badge" id="tlTurnBadge">—</span>
+            <div class="tl-controls">
+                <button class="tl-play-btn" id="tlPlayBtn" onclick="tlTogglePlay()" title="Play/Pause">▶</button>
+                <div class="tl-slider-wrap">
+                    <input type="range" class="tl-slider" id="tlSlider" min="1" max="1" value="1"
+                           oninput="tlSeek(+this.value)">
+                </div>
+            </div>
+        </div>
+        <div class="tl-metric-grid">
+            <div class="tl-metric">
+                <div class="tl-metric-label">입력 토큰</div>
+                <div class="tl-metric-val" id="tlInTok">—</div>
+                <div class="tl-metric-sub" id="tlInTokSub"></div>
+                <div id="tlInTokDelta"></div>
+            </div>
+            <div class="tl-metric">
+                <div class="tl-metric-label">출력 토큰</div>
+                <div class="tl-metric-val" id="tlOutTok">—</div>
+                <div class="tl-metric-sub" id="tlOutTokSub"></div>
+                <div id="tlOutTokDelta"></div>
+            </div>
+            <div class="tl-metric">
+                <div class="tl-metric-label">캐시 히트율 <span style="color:#4a5568">(추정)</span></div>
+                <div class="tl-metric-val" id="tlCacheRate">—</div>
+                <div class="tl-metric-note" id="tlCacheNote"></div>
+                <div id="tlCacheRateDelta"></div>
+            </div>
+            <div class="tl-metric">
+                <div class="tl-metric-label">턴 추정 비용 <span style="color:#4a5568">(추정)</span><span
+                        class="tip-icon">?<span class="tip-box">Sonnet/Opus/Haiku 단가를 기반으로 자동 계산한 턴당 추정 비용입니다. 캐시 읽기는 별도 단가 적용.</span></span>
+                </div>
+                <div class="tl-metric-val" id="tlCost">—</div>
+                <div class="tl-metric-note"><span id="tlModelBadge" class="model-badge model-badge-sonnet">Sonnet</span>
+                </div>
+                <div id="tlCostDelta"></div>
+            </div>
+        </div>
+        <div id="tlSessionSummary" style="font-size:11px;color:#718096;margin-bottom:12px;line-height:1.8"></div>
+        <div style="margin-bottom:10px">
+            <div class="tl-section-title">컨텍스트 윈도우 점유율 <span style="color:#4a5568;font-size:9px">(추정 — 실제 분해 불가)</span>
+            </div>
+            <div class="tl-ctx-bar" id="tlCtxBar">
+                <div class="tl-ctx-seg" id="tlCtxSystem" style="background:#b794f4" title="System/Rules"></div>
+                <div class="tl-ctx-seg" id="tlCtxHistory" style="background:#63b3ed" title="History"></div>
+                <div class="tl-ctx-seg" id="tlCtxOutput" style="background:#68d391" title="Output"></div>
+                <div class="tl-ctx-seg" id="tlCtxFree" style="background:#1e2535" title="여유"></div>
+            </div>
+            <div class="tl-ctx-legend">
+                <div class="tl-ctx-legend-item">
+                    <div class="tl-ctx-dot" style="background:#b794f4"></div>
+                    System/Rules
+                </div>
+                <div class="tl-ctx-legend-item">
+                    <div class="tl-ctx-dot" style="background:#63b3ed"></div>
+                    대화 이력
+                </div>
+                <div class="tl-ctx-legend-item">
+                    <div class="tl-ctx-dot" style="background:#68d391"></div>
+                    출력
+                </div>
+                <div class="tl-ctx-legend-item">
+                    <div class="tl-ctx-dot" style="background:#1e2535"></div>
+                    여유
+                </div>
+                <div class="tl-ctx-legend-item" id="tlCtxInfo" style="margin-left:auto"></div>
+            </div>
+        </div>
+        <div class="tl-two-col">
+            <div>
+                <div class="tl-section-title">주입된 규칙/스킬 <span
+                        style="color:#4a5568;font-size:9px">(정적 — 세션 내 변경 없음)</span></div>
+                <div class="tl-rules" id="tlRules">
+                    <div class="tl-empty">세션을 선택하세요</div>
+                </div>
+            </div>
+            <div>
+                <div class="tl-section-title">턴별 토큰 차트</div>
+                <div style="position:relative;height:100px">
+                    <canvas id="tlChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal overlay -->
+<div id="modal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center"
+     onclick="closeModal(event)">
+    <div style="background:#111827;border:1px solid #2d3748;border-radius:12px;padding:28px;width:min(720px,95vw);max-height:80vh;overflow-y:auto"
+         onclick="event.stopPropagation()">
+        <div style="display:flex;justify-content:space-between;margin-bottom:20px">
+            <h3 id="modalTitle" style="color:#fff;font-size:15px"></h3>
+            <button onclick="closeModal()"
+                    style="background:none;border:none;color:#718096;font-size:18px;cursor:pointer">✕
+            </button>
+        </div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+    const C = ['#63b3ed', '#68d391', '#f6ad55', '#fc8181', '#b794f4', '#76e4f7', '#fbb6ce', '#90cdf4'];
+    const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
+    const fmt = (n, d = 2) => n == null ? '—' : Number(n).toLocaleString('ko', {maximumFractionDigits: d});
+    const stars = n => n ? '★'.repeat(n) + '☆'.repeat(5 - n) : '—';
+    const cacheRate = r => {
+        const t = (r.input_tokens || 0) + (r.cache_read || 0) + (r.cache_write || 0);
+        return t ? (r.cache_read || 0) / t * 100 : 0;
+    };
+
+    function fmtCost(n) {
+        if (n == null) return '—';
+        const s = Math.abs(n).toFixed(4);
+        const [intPart, dec] = s.split('.');
+        const sign = n < 0 ? '-' : '';
+        return `${sign}$${intPart}.<span style="font-size:.85em;color:#718096">${dec.slice(0, 2)}<span style="color:#4a5568">${dec.slice(2)}</span></span>`;
+    }
+
+    let charts = {};
+    let allData = null;
+    let activeDays = 1;
+    let modelFilter = '';
+    let projectFilter = '';
+    let baselineRunId = null; // user-pinned baseline row
+    let afterRunId = null; // user-pinned after row (default: newest)
+    let seqCompareMode = false;
+    let seqAfterRunId = null;
+    let seqStep = 0;   // 0-based index into seqCandidates
+    const turnCache = new Map(); // session_id → parsed turns (avoid re-fetch)
+
+    // ── 유틸 헬퍼 ──
+    function escHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function notesFor(r) {
+        return localStorage.getItem('exp_notes_' + r.id) ?? r.notes ?? '';
+    }
+
+    function renderTestBadge(r) {
+        if (r.test_pass_rate == null) return '<span class="badge na">SKIP</span>';
+        if (r.test_pass_rate === 0) return '<span class="badge fail">FAIL</span>';
+        const pct = (r.test_pass_rate * 100).toFixed(0);
+        return `<span class="badge ${r.test_pass_rate >= .9 ? 'ok' : 'partial'}">${pct}%</span>`;
+    }
+
+    function editNotes(runId) {
+        const cell = document.getElementById('notes-cell-' + runId);
+        if (!cell) return;
+        const runs = allData?.runs || [];
+        const r = runs.find(x => x.id === runId);
+        const current = notesFor(r || {id: runId});
+        const ta = document.createElement('textarea');
+        ta.value = current;
+        ta.rows = 3;
+        ta.dataset.notesRunId = runId;
+        ta.style.cssText = 'width:100%;font-size:11px;background:#1a2035;color:#e2e8f0;border:1px solid #b794f4;border-radius:4px;padding:4px;resize:vertical;box-sizing:border-box;outline:none';
+        ta.placeholder = '메모 입력…';
+
+        function save() {
+            const val = ta.value.trim();
+            if (val) localStorage.setItem('exp_notes_' + runId, val);
+            else localStorage.removeItem('exp_notes_' + runId);
+            cell.innerHTML = `<span class="notes-display" onclick="editNotes(${runId})" title="클릭하여 편집" style="cursor:pointer;color:${val ? 'inherit' : '#4a5568'}">${escHtml(val || '클릭하여 메모 추가…')}</span>`;
+        }
+
+        ta.onblur = save;
+        ta.onkeydown = e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                ta.blur();
+            }
+            if (e.key === 'Escape') {
+                ta.value = current;
+                ta.blur();
+            }
+        };
+        cell.innerHTML = '';
+        cell.appendChild(ta);
+        ta.focus();
+    }
+
+    // ── mock validation helper (dev only — run in console: selfTestBadges()) ──
+    function selfTestBadges() {
+        const cases = [
+            [{test_pass_rate: null}, 'SKIP'],
+            [{test_pass_rate: 0}, 'FAIL'],
+            [{test_pass_rate: 0.5}, '50%'],
+            [{test_pass_rate: 0.89}, '89%'],
+            [{test_pass_rate: 0.9}, '90%'],
+            [{test_pass_rate: 1.0}, '100%'],
+        ];
+        let pass = 0;
+        cases.forEach(([r, expected]) => {
+            const html = renderTestBadge(r);
+            const ok = html.includes(expected);
+            console.log(ok ? '✓' : '✗', JSON.stringify(r), '→', html.replace(/<[^>]+>/g, ''), ok ? '' : 'EXPECTED ' + expected);
+            if (ok) pass++;
+        });
+        console.log(`selfTestBadges: ${pass}/${cases.length} passed`);
+    }
+
+    function setDays(d, el) {
+        activeDays = d;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        if (allData) render(allData);
+    }
+
+    function applyFilters() {
+        modelFilter = document.getElementById('modelFilter').value;
+        projectFilter = document.getElementById('projectFilter').value;
+        if (allData) render(allData);
+    }
+
+    function filterRuns(runs) {
+        let r = runs;
+        if (projectFilter) r = r.filter(x => (x.project || '') === projectFilter);
+        if (modelFilter) r = r.filter(x => x.runner === modelFilter);
+        if (activeDays > 0) {
+            const cutoff = Date.now() - activeDays * 86400 * 1000;
+            r = r.filter(x => {
+                const t = new Date(x.recorded_at.replace(' ', 'T') + 'Z').getTime();
+                return t >= cutoff;
+            });
+        }
+        return r;
+    }
+
+    function _populateProjectSelect(projects) {
+        const sel = document.getElementById('projectFilter');
+        const cur = sel.value;
+        // 기존 동적 옵션 제거
+        [...sel.options].slice(1).forEach(o => o.remove());
+        (projects || []).sort().forEach(p => {
+            const o = document.createElement('option');
+            o.value = p;
+            // basename만 표시 (hex suffix 제거)
+            o.textContent = p.replace(/-[0-9a-f]{8}$/, '');
+            sel.appendChild(o);
+        });
+        if (cur) sel.value = cur;
+        // 레포 1개면 셀렉터 숨김
+        sel.style.display = (projects || []).length <= 1 ? 'none' : '';
+    }
+
+    function _checkVersion() {
+        fetch('/version').then(r => r.json()).then(v => {
+            const badge = document.getElementById('updateBadge');
+            if (v.has_update && v.latest) {
+                badge.textContent = `↑ ${v.latest} 업데이트`;
+                badge.title = `현재 ${v.local} → 최신 ${v.latest}\n클릭하면 릴리즈 페이지로 이동`;
+                badge.style.display = '';
+            }
+        }).catch(() => {});
+    }
+
+    function destroyCharts() {
+        Object.values(charts).forEach(c => c.destroy());
+        charts = {};
+    }
+
+    function chartOpts(extra = {}) {
+        return Object.assign({
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {legend: {labels: {color: '#718096', font: {size: 11}}}},
+            scales: {
+                y: {ticks: {color: '#4a5568', font: {size: 10}}, grid: {color: '#1e2535'}},
+                x: {ticks: {color: '#4a5568', font: {size: 10}}, grid: {color: '#1e2535'}}
+            }
+        }, extra);
+    }
+
+    function renderEmpty() {
+        document.getElementById('kpiRow').innerHTML =
+            '<div class="card" style="grid-column:1/-1;text-align:center;color:#4a5568;padding:32px">' +
+            '데이터 없음 — 세션 종료 시 자동 적재 (turn≥5, output≥500, 파일 변경)</div>';
+        ['beforeAfterChart', 'efficiencyChart', 'tokenTrendChart', 'cacheChart', 'scatterChart', 'qualityChart'].forEach(id => {
+            const c = document.getElementById(id);
+            if (!c) return;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#111827';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.fillStyle = '#2d3748';
+            ctx.textAlign = 'center';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('데이터 없음', c.width / 2, c.height / 2);
+        });
+        document.getElementById('rulesBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#4a5568;padding:20px">없음</td></tr>';
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="14" style="text-align:center;color:#4a5568;padding:20px">없음</td></tr>';
+        document.getElementById('status').textContent = '데이터 없음';
+        renderConfigVersions([]);
+    }
+
+    function render(data) {
+        allData = data;
+        _populateProjectSelect(data.projects || []);
+        const {runs: allRuns, groups} = data;
+        const runs = filterRuns(allRuns || []);
+        tlPopulateSessions([...(allRuns || [])].sort((a, b) => b.id - a.id));
+        if (!runs || runs.length === 0) {
+            renderEmpty();
+            return;
+        }
+
+        const sorted = [...runs].sort((a, b) => a.id - b.id);
+        const gKeys = Object.keys(groups);
+        const groupIdx = r => {
+            const h = r.claude_md_hash || 'unknown';
+            return gKeys.indexOf(h);
+        };
+
+        // split before/after by median group index
+        const midGroup = Math.floor(gKeys.length / 2);
+        const beforeRuns = sorted.filter(r => groupIdx(r) < midGroup || gKeys.length <= 1);
+        const afterRuns = sorted.filter(r => groupIdx(r) >= midGroup && gKeys.length > 1);
+        const hasBA = beforeRuns.length > 0 && afterRuns.length > 0;
+
+        // ── KPI ──
+        const totalCost = runs.reduce((s, r) => s + (r.billing_usd || 0), 0);
+        const totalIn = runs.reduce((s, r) => s + (r.input_tokens || 0), 0);
+        const totalOut = runs.reduce((s, r) => s + (r.output_tokens || 0), 0);
+        const avgCache = avg(runs.map(r => cacheRate(r)));
+        const rated = runs.filter(r => r.rating != null);
+        const avgRating = rated.length ? avg(rated.map(r => r.rating)) : null;
+
+        let savingPct = null;
+        if (hasBA) {
+            const bCost = avg(beforeRuns.map(r => r.billing_usd || 0));
+            const aCost = avg(afterRuns.map(r => r.billing_usd || 0));
+            savingPct = bCost > 0 ? (bCost - aCost) / bCost * 100 : 0;
+        }
+        const prevRun = allRuns.length > 1 ? allRuns[1] : null;
+        const costDelta = prevRun ? (runs[0]?.billing_usd || 0) - (prevRun.billing_usd || 0) : null;
+
+        const costDeltaHtml = costDelta != null
+            ? `<div class="kpi-delta ${costDelta >= 0 ? 'inc' : 'save'}">${costDelta >= 0 ? '▲ +' : '▼ '}${fmtCost(Math.abs(costDelta))}</div>`
+            : '';
+        const savingCard = savingPct != null
+            ? `<div class="card">
+        <div class="card-title">규칙 적용 후 절감률</div>
+        <div class="kpi-val">${savingPct.toFixed(1)}%</div>
+        <div class="kpi-sub">Before ${fmtCost(avg(beforeRuns.map(r => r.billing_usd || 0)))} → After ${fmtCost(avg(afterRuns.map(r => r.billing_usd || 0)))}</div>
+        ${savingPct > 0 ? `<div class="kpi-delta save">▼ ${savingPct.toFixed(1)}% 절감</div>` : ''}
+      </div>`
+            : `<div class="card">
+        <div class="card-title">규칙 적용 후 절감률</div>
+        <div style="margin:10px 0 6px;font-size:12px;color:#718096">세션 수집 중 <b style="color:#c9d1e0">${gKeys.length}</b> / 2 그룹</div>
+        <div style="background:#1a2035;border-radius:4px;height:6px;overflow:hidden">
+          <div style="background:#805ad5;height:100%;width:${Math.min(gKeys.length / 2 * 100, 100)}%;border-radius:4px;transition:width .4s"></div>
+        </div>
+        <div class="kpi-sub" style="margin-top:6px">그룹 2개 이상 수집 후 계산</div>
+      </div>`;
+        document.getElementById('kpiRow').innerHTML = [
+            `<div class="card">
+      <div class="card-title">누적 Input 토큰</div>
+      <div class="kpi-val">${fmt(totalIn, 0)}</div>
+      <div class="kpi-sub">input tokens</div>
+    </div>`,
+            `<div class="card">
+      <div class="card-title">누적 Output 토큰</div>
+      <div class="kpi-val">${fmt(totalOut, 0)}</div>
+      <div class="kpi-sub">output tokens</div>
+    </div>`,
+            `<div class="card">
+      <div class="card-title">총 비용 (USD)</div>
+      <div class="kpi-val">${fmtCost(totalCost)}</div>
+      <div class="kpi-sub">billing cost</div>
+      ${costDeltaHtml}
+    </div>`,
+            savingCard,
+        ].join('');
+
+        destroyCharts();
+
+        // 차트는 idle 시점에 렌더 (초기 로드 블로킹 방지)
+        const _chartData = {sorted, allRuns, gKeys, midGroup, groupIdx};
+        const _renderCharts = () => {
+            const {sorted, allRuns, gKeys, midGroup, groupIdx} = _chartData;
+
+            // ── Before / After grouped bar ──
+            const baLabels = sorted.map(r => `#${r.id}`);
+            const isBefore = r => groupIdx(r) < midGroup || gKeys.length <= 1;
+            const isAfter = r => groupIdx(r) >= midGroup && gKeys.length > 1;
+            const bData = sorted.map(r => (r.output_tokens || 0));
+            const aData = sorted.map(r => (r.output_tokens || 0));
+            charts.ba = new Chart(document.getElementById('beforeAfterChart'), {
+                type: 'bar',
+                data: {
+                    labels: baLabels, datasets: [
+                        {
+                            label: 'Before (규칙 적용 전)',
+                            data: bData,
+                            backgroundColor: sorted.map(r => isBefore(r) ? 'rgba(252,129,129,.7)' : 'rgba(100,100,100,.15)'),
+                            borderColor: sorted.map(r => isBefore(r) ? '#fc8181' : 'rgba(100,100,100,.3)'),
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'After  (규칙 적용 후)',
+                            data: aData,
+                            backgroundColor: sorted.map(r => isAfter(r) ? 'rgba(72,187,120,.7)' : 'rgba(100,100,100,.15)'),
+                            borderColor: sorted.map(r => isAfter(r) ? '#48bb78' : 'rgba(100,100,100,.3)'),
+                            borderWidth: 1
+                        },
+                    ]
+                },
+                options: Object.assign(chartOpts(), {
+                    plugins: {
+                        legend: {labels: {color: '#718096', font: {size: 11}}},
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const v = ctx.raw;
+                                    if (v == null) return '';
+                                    const prevIdx = ctx.dataIndex - 1;
+                                    const prev = ctx.dataset.data[prevIdx];
+                                    const pct = prev && prev > 0 ? ' (' + ((v - prev) / prev * 100).toFixed(1) + '%)' : '';
+                                    return `${ctx.dataset.label}: ${v.toLocaleString()}${pct}`;
+                                }
+                            }
+                        }
+                    },
+                })
+            });
+
+            // ── Efficiency line (output/input ratio) ──
+            const effData = sorted.map(r => {
+                const i = r.input_tokens || 1;
+                return +((r.output_tokens || 0) / i / 100).toFixed(2);
+            });
+            const effMax = Math.max(...effData);
+            const effMaxIdx = effData.indexOf(effMax);
+            const HIGH_EFF_THRESHOLD = 8; // x 이상 = 고효율 구간
+
+            // 커스텀 플러그인: 최고점 레이블 + 고효율 기준선
+            const effPlugin = {
+                id: 'effOverlay',
+                afterDraw(chart) {
+                    const {ctx, chartArea: ca, scales} = chart;
+                    if (!ca) return;
+
+                    // 고효율 구간 배경 (threshold 이상)
+                    const yThresh = scales.y.getPixelForValue(HIGH_EFF_THRESHOLD);
+                    if (yThresh > ca.top) {
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(183,148,244,.06)';
+                        ctx.fillRect(ca.left, ca.top, ca.right - ca.left, yThresh - ca.top);
+
+                        // 점선 기준선
+                        ctx.setLineDash([5, 4]);
+                        ctx.strokeStyle = 'rgba(183,148,244,.35)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(ca.left, yThresh);
+                        ctx.lineTo(ca.right, yThresh);
+                        ctx.stroke();
+
+                        // 기준선 레이블
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = 'rgba(183,148,244,.6)';
+                        ctx.font = '10px sans-serif';
+                        ctx.textAlign = 'right';
+                        ctx.fillText('고효율 구간 (' + HIGH_EFF_THRESHOLD + 'x+)', ca.right - 4, yThresh - 4);
+                        ctx.restore();
+                    }
+
+                    // 최고 효율 포인트 레이블
+                    const ds = chart.data.datasets[0];
+                    const meta = chart.getDatasetMeta(0);
+                    if (!meta.data[effMaxIdx]) return;
+                    const pt = meta.data[effMaxIdx];
+                    const val = effData[effMaxIdx];
+                    ctx.save();
+                    // 말풍선 배경
+                    const label = '▲ 최고 효율  ' + val + 'x';
+                    ctx.font = 'bold 11px sans-serif';
+                    const tw = ctx.measureText(label).width;
+                    const px = Math.min(Math.max(pt.x, ca.left + tw / 2 + 8), ca.right - tw / 2 - 8);
+                    const py = pt.y - 28;
+                    const pad = 5;
+                    ctx.fillStyle = '#2d1f5e';
+                    ctx.strokeStyle = '#b794f4';
+                    ctx.lineWidth = 1;
+                    const rx = px - tw / 2 - pad, ry = py - 13, rw = tw + pad * 2, rh = 18;
+                    ctx.beginPath();
+                    ctx.roundRect(rx, ry, rw, rh, 4);
+                    ctx.fill();
+                    ctx.stroke();
+                    // 말풍선 꼬리
+                    ctx.beginPath();
+                    ctx.moveTo(px - 5, ry + rh);
+                    ctx.lineTo(px, ry + rh + 6);
+                    ctx.lineTo(px + 5, ry + rh);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    // 텍스트
+                    ctx.fillStyle = '#e9d8fd';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(label, px, ry + rh / 2);
+                    ctx.restore();
+                }
+            };
+
+            charts.eff = new Chart(document.getElementById('efficiencyChart'), {
+                type: 'line',
+                plugins: [effPlugin],
+                data: {
+                    labels: sorted.map(r => `#${r.id}`),
+                    datasets: [{
+                        label: '효율성 점수 (output÷input÷100)',
+                        data: effData,
+                        borderColor: '#b794f4',
+                        borderWidth: 2.5,
+                        backgroundColor(ctx) {
+                            const chart = ctx.chart;
+                            const {ctx: c, chartArea} = chart;
+                            if (!chartArea) return 'transparent';
+                            const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            grad.addColorStop(0, 'rgba(183,148,244,.45)');
+                            grad.addColorStop(0.5, 'rgba(99,102,241,.18)');
+                            grad.addColorStop(1, 'rgba(99,102,241,.0)');
+                            return grad;
+                        },
+                        tension: 0.45,
+                        cubicInterpolationMode: 'monotone',
+                        fill: true,
+                        pointRadius: effData.map((_, i) => i === effMaxIdx ? 7 : 3),
+                        pointBackgroundColor: effData.map((_, i) => i === effMaxIdx ? '#b794f4' : 'rgba(183,148,244,.6)'),
+                        pointBorderColor: effData.map((_, i) => i === effMaxIdx ? '#fff' : 'transparent'),
+                        pointBorderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    animation: {duration: 600},
+                    plugins: {
+                        legend: {display: false},
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `효율 ${ctx.raw}x  (${(ctx.raw * 100).toFixed(0)}%)`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                color: '#4a5568',
+                                font: {size: 10},
+                                callback: v => v + 'x'
+                            },
+                            grid: {color: '#1e2535'},
+                            title: {display: true, text: 'output / input (×)', color: '#4a5568', font: {size: 10}},
+                            min: 0,
+                        },
+                        x: {ticks: {color: '#4a5568', font: {size: 10}}, grid: {color: '#1e2535'}}
+                    }
+                }
+            });
+
+            // ── Token trend Before(점선)/After(실선) — dual Y axis ──
+            const splitIdx = gKeys.length > 1 ? sorted.findIndex(r => groupIdx(r) >= midGroup) : -1;
+            const beforeOut = sorted.map((r, i) => splitIdx >= 0 && i >= splitIdx ? null : (r.output_tokens || 0));
+            const afterOut = sorted.map((r, i) => splitIdx >= 0 && i < splitIdx ? null : (r.output_tokens || 0));
+            charts.token = new Chart(document.getElementById('tokenTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: sorted.map(r => `#${r.id}`), datasets: [
+                        {
+                            label: 'Output-Before',
+                            data: beforeOut,
+                            borderColor: '#fc8181',
+                            borderDash: [6, 3],
+                            tension: .3,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'yOut'
+                        },
+                        {
+                            label: 'Output-After',
+                            data: afterOut,
+                            borderColor: '#48bb78',
+                            tension: .3,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'yOut'
+                        },
+                        {
+                            label: 'Cache Read',
+                            data: sorted.map(r => r.cache_read || 0),
+                            borderColor: '#63b3ed',
+                            tension: .3,
+                            fill: false,
+                            yAxisID: 'yCache'
+                        },
+                    ]
+                },
+                options: Object.assign(chartOpts(), {
+                    scales: {
+                        x: {ticks: {color: '#4a5568', font: {size: 10}}, grid: {color: '#1e2535'}},
+                        yOut: {position: 'left', ticks: {color: '#4a5568', font: {size: 10}}, grid: {color: '#1e2535'}},
+                        yCache: {
+                            position: 'right',
+                            ticks: {color: '#63b3ed', font: {size: 10}},
+                            grid: {drawOnChartArea: false},
+                            title: {display: true, text: 'Cache', color: '#63b3ed', font: {size: 9}}
+                        },
+                    }
+                })
+            });
+
+            // ── Cache hit rate ──
+            charts.cache = new Chart(document.getElementById('cacheChart'), {
+                type: 'line',
+                data: {
+                    labels: sorted.map(r => `#${r.id}`),
+                    datasets: [{
+                        label: '캐시적중%',
+                        data: sorted.map(r => +cacheRate(r).toFixed(1)),
+                        borderColor: '#76e4f7', backgroundColor: 'rgba(118,228,247,.08)',
+                        tension: .4, fill: true, pointRadius: 3,
+                    }]
+                },
+                options: Object.assign(chartOpts(), {
+                    plugins: {legend: {display: false}},
+                    scales: {
+                        y: {min: 0, max: 100, ticks: {color: '#4a5568'}, grid: {color: '#1e2535'}},
+                        x: {ticks: {color: '#4a5568'}, grid: {color: '#1e2535'}}
+                    }
+                })
+            });
+
+            // ── Cost vs Rating bubble ──
+            charts.scatter = new Chart(document.getElementById('scatterChart'), {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: '실험',
+                        data: runs.filter(r => r.rating != null).map(r => ({
+                            x: +(r.billing_usd || 0).toFixed(4),
+                            y: r.rating || 0,
+                            r: Math.max(4, (r.turn_count || 0) / 5)
+                        })),
+                        backgroundColor: 'rgba(99,179,237,.55)', borderColor: '#63b3ed'
+                    }]
+                },
+                options: Object.assign(chartOpts(), {
+                    plugins: {legend: {display: false}},
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 5,
+                            title: {display: true, text: 'Rating', color: '#4a5568'},
+                            ticks: {color: '#4a5568'},
+                            grid: {color: '#1e2535'}
+                        },
+                        x: {
+                            title: {display: true, text: 'Cost USD', color: '#4a5568'},
+                            ticks: {color: '#4a5568'},
+                            grid: {color: '#1e2535'}
+                        }
+                    }
+                })
+            });
+
+            // ── Quality metrics ──
+            charts.quality = new Chart(document.getElementById('qualityChart'), {
+                type: 'line',
+                data: {
+                    labels: sorted.map(r => `#${r.id}`), datasets: [
+                        {
+                            label: '컴파일',
+                            data: sorted.map(r => r.compile_ok ? 1 : 0),
+                            borderColor: '#48bb78',
+                            stepped: true,
+                            fill: false,
+                            pointRadius: 3
+                        },
+                        {
+                            label: '테스트통과',
+                            data: sorted.map(r => r.test_pass_rate ?? null),
+                            borderColor: '#63b3ed',
+                            tension: .3,
+                            fill: false,
+                            spanGaps: true
+                        },
+                        {
+                            label: '평점/5',
+                            data: sorted.map(r => r.rating != null ? r.rating / 5 : null),
+                            borderColor: '#f6e05e',
+                            tension: .3,
+                            fill: false,
+                            spanGaps: true
+                        },
+                    ]
+                },
+                options: Object.assign(chartOpts(), {
+                    scales: {
+                        y: {min: 0, max: 1, ticks: {color: '#4a5568'}, grid: {color: '#1e2535'}},
+                        x: {ticks: {color: '#4a5568'}, grid: {color: '#1e2535'}}
+                    }
+                })
+            });
+        }; // end _renderCharts
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(_renderCharts);
+        else setTimeout(_renderCharts, 0);
+
+        // ── 레포별 비교 차트 ──
+        (function renderProjectCharts() {
+            const allR = allRuns || [];
+            const projMap = {};
+            allR.forEach(r => {
+                const p = r.project || 'unknown';
+                if (!projMap[p]) projMap[p] = {cost: 0, turns: [], cnt: 0};
+                projMap[p].cost += r.billing_usd || 0;
+                projMap[p].turns.push(r.turn_count || 0);
+                projMap[p].cnt++;
+            });
+            const labels = Object.keys(projMap).sort().map(p => p.replace(/-[0-9a-f]{8}$/, ''));
+            const keys = Object.keys(projMap).sort();
+            const row = document.getElementById('projectChartsRow');
+            if (keys.length <= 1) { row.style.display = 'none'; return; }
+            row.style.display = '';
+            const palette = ['#63b3ed','#b794f4','#48bb78','#ed8936','#fc8181','#76e4f7','#f6c90e'];
+
+            ['projectCostChart','projectTurnsChart'].forEach(id => {
+                if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+            });
+
+            charts.projectCostChart = new Chart(document.getElementById('projectCostChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: '누적 비용 (USD)',
+                        data: keys.map(k => +projMap[k].cost.toFixed(5)),
+                        backgroundColor: keys.map((_, i) => palette[i % palette.length]),
+                    }]
+                },
+                options: chartOpts({plugins:{legend:{display:false}}})
+            });
+
+            charts.projectTurnsChart = new Chart(document.getElementById('projectTurnsChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: '평균 턴 수',
+                        data: keys.map(k => {
+                            const t = projMap[k].turns;
+                            return t.length ? +(t.reduce((a,b)=>a+b,0)/t.length).toFixed(1) : 0;
+                        }),
+                        backgroundColor: keys.map((_, i) => palette[i % palette.length]),
+                    }]
+                },
+                options: chartOpts({plugins:{legend:{display:false}}})
+            });
+        })();
+
+        // ── Rules table ──
+        const rulesBody = document.getElementById('rulesBody');
+        rulesBody.innerHTML = '';
+        const gArr = gKeys.map((h, i) => {
+            const ids = new Set(groups[h]);
+            const g = allRuns.filter(r => ids.has(r.id));
+            const prev = i > 0 ? allRuns.filter(r => new Set(groups[gKeys[i - 1]]).has(r.id)) : [];
+            const bOut = prev.length ? avg(prev.map(r => r.output_tokens || 0)) : null;
+            const aOut = avg(g.map(r => r.output_tokens || 0));
+            const bCst = prev.length ? avg(prev.map(r => r.billing_usd || 0)) : null;
+            const aCst = avg(g.map(r => r.billing_usd || 0));
+            const savPct = bOut && bOut > 0 ? ((bOut - aOut) / bOut * 100).toFixed(1) + '%' : '—';
+            const costSav = bCst != null ? `<span class="cost-delta ${aCst < bCst ? 'save' : 'inc'}">${aCst < bCst ? '▼' : '▲'} $${Math.abs(aCst - bCst).toFixed(4)}</span>` : '—';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+      <td><span class="tag">그룹${i + 1}</span> <span style="font-size:10px;color:#4a5568">${h.slice(0, 10)}…</span></td>
+      <td style="font-size:11px">${g.length > 0 ? (g[0].recorded_at || '').slice(0, 16) : ''}</td>
+      <td>${g.length}</td>
+      <td>${bOut != null ? fmt(bOut, 0) : '—'}</td>
+      <td>${fmt(aOut, 0)}</td>
+      <td>${bOut != null ? `<span class="diff-pos">${savPct}</span>` : '—'}</td>
+      <td>${bCst != null ? '$' + bCst.toFixed(4) : '—'}</td>
+      <td>$${aCst.toFixed(4)}</td>
+      <td>${costSav}</td>
+    `;
+            rulesBody.appendChild(tr);
+        });
+
+        // ── Experiment detail table ──
+        const tbody = document.getElementById('tbody');
+        // SSE 충돌 가드 — notes 편집 중이면 테이블 재구축 스킵
+        if (document.activeElement && document.activeElement.dataset.notesRunId) return;
+        tbody.innerHTML = '';
+        // auto-set baseline to oldest run if not pinned
+        const reversedRows = sorted.slice().reverse();
+        if (baselineRunId == null && reversedRows.length > 0) {
+            baselineRunId = reversedRows[reversedRows.length - 1].id;
+        }
+        // auto-set after to newest run if not pinned
+        if (afterRunId == null && sorted.length > 0) {
+            afterRunId = sorted[0].id;
+        }
+        // afterRunId must not equal baselineRunId — reset if collision
+        if (afterRunId === baselineRunId && sorted.length > 1) {
+            afterRunId = sorted[0].id !== baselineRunId ? sorted[0].id : sorted[1].id;
+        }
+        const baselineRun = allRuns.find(x => x.id === baselineRunId) || null;
+
+        let prevHash = null;
+        reversedRows.forEach((r, ri) => {
+            if (r.claude_md_hash && r.claude_md_hash !== prevHash && prevHash !== null) {
+                const sep = document.createElement('tr');
+                sep.className = 'sep-row';
+                sep.innerHTML = `<td colspan="14">▲ CLAUDE.md 변경 감지 — 새 그룹 시작 (hash: ${r.claude_md_hash.slice(0, 10)}…)</td>`;
+                tbody.appendChild(sep);
+            }
+            prevHash = r.claude_md_hash || prevHash;
+
+            const prevR = allRuns.find(x => x.id < r.id);
+            const costD = prevR ? r.billing_usd - (prevR.billing_usd || 0) : null;
+            const costDCell = costD != null
+                ? `<span class="cost-delta ${costD <= 0 ? 'save' : 'inc'}">${costD <= 0 ? '▼' : '▲'} ${fmtCost(Math.abs(costD))}</span>`
+                : '—';
+
+            const cb = r.compile_ok == null ? '<span class="badge na">SKIP</span>' : r.compile_ok ? '<span class="badge ok">OK</span>' : '<span class="badge fail">FAIL</span>';
+            const tb = renderTestBadge(r);
+            const loc = `<span class="diff-pos">+${r.added_lines || 0}</span> <span class="diff-neg">-${r.deleted_lines || 0}</span>`;
+
+            const isBaseline = r.id === baselineRunId;
+            const isAfterRow = r.id === afterRunId;
+            const idCell = (isBaseline ? `<span class="baseline-badge">BEFORE</span>` : '')
+                + (isAfterRow ? `<span class="after-badge">AFTER</span>` : '')
+                + `#${r.id}`;
+            const baselineBtnCls = isBaseline ? 'baseline-btn active' : 'baseline-btn';
+            const baselineBtnTip = isBaseline ? '현재 BEFORE 기준' : 'BEFORE로 설정';
+            const afterBtnCls = isAfterRow ? 'after-btn active' : 'after-btn';
+            const afterBtnTip = isAfterRow ? '현재 AFTER 기준' : 'AFTER로 설정';
+
+            const rowId = 'row-' + r.id;
+            const detId = 'det-' + r.id;
+            const tr = document.createElement('tr');
+            let rowCls = 'data-row';
+            if (isBaseline) rowCls += ' baseline-row';
+            if (isAfterRow) rowCls += ' after-row';
+            tr.className = rowCls;
+            tr.id = rowId;
+            tr.onclick = () => toggleDetail(r, detId);
+            tr.innerHTML = `
+      <td>${idCell}</td>
+      <td style="font-size:11px">${(r.recorded_at || '').slice(0, 16)}</td>
+      <td><span class="tag">${r.runner || ''}</span></td>
+      <td style="font-size:10px;color:#90cdf4;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(r.branch || '').replace('feat/', '').replace('fix/', '')}</td>
+      <td>${r.turn_count || 0}</td>
+      <td>${fmt(r.output_tokens, 0)}</td>
+      <td>${fmt(r.cache_read, 0)}</td>
+      <td>${fmtCost(r.billing_usd || 0)}</td>
+      <td>${costDCell}</td>
+      <td>${cb}</td><td>${tb}</td><td>${loc}</td>
+      <td>${r.claude_md_hash ? `<span class="tag" style="font-family:monospace;letter-spacing:.02em">${r.claude_md_hash.slice(0, 8)}</span>` : '<span style="color:#2d3748">—</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="${baselineBtnCls}" title="${baselineBtnTip}"
+          onclick="event.stopPropagation();setBaseline(${r.id})">[BEFORE]</button>
+        <button class="${afterBtnCls}" title="${afterBtnTip}"
+          onclick="event.stopPropagation();setAfter(${r.id})">[AFTER]</button>
+        <span class="stars" style="font-size:11px;margin-left:4px">${r.rating != null ? '★' + r.rating : '—'}</span>
+      </td>
+    `;
+            tbody.appendChild(tr);
+
+            const detRow = document.createElement('tr');
+            detRow.className = 'expanded-detail';
+            detRow.id = detId;
+            detRow.style.display = 'none';
+            detRow.innerHTML = `<td colspan="14"><div class="detail-inner" id="detail-inner-${r.id}"></div></td>`;
+            tbody.appendChild(detRow);
+        });
+
+        // ── Config version history ──
+        renderConfigVersions(data.config_versions || []);
+
+        // ── Analysis (show cached if available) ──
+        if (data.latest_analysis) renderAnalysis(data.latest_analysis);
+
+        document.getElementById('status').textContent = `갱신: ${data.generated}`;
+
+        // keep seq step bar in sync after re-render
+        if (seqCompareMode) {
+            const cands = _seqCandidates();
+            if (cands.length > 0) _renderSeqStepBar(cands);
+            else exitSeqCompare();
+        }
+    }
+
+    function toggleDetail(r, detId) {
+        const el = document.getElementById(detId);
+        if (!el) return;
+        const visible = el.style.display !== 'none';
+        el.style.display = visible ? 'none' : 'table-row';
+        if (!visible) refreshDetail(r.id);
+    }
+
+    function refreshDetail(runId) {
+        const runs = allData?.runs || [];
+        const thisR = runs.find(x => x.id === runId);
+        if (!thisR) return;
+        const inner = document.getElementById('detail-inner-' + runId);
+        if (!inner) return;
+
+        // 비교 테이블: BEFORE(baseline) vs AFTER(after) 전역 핀 기준
+        // 없는 경우(버전 없음 등) null 허용 → buildCompareSection이 '—' 표시
+        const afterR = afterRunId ? runs.find(x => x.id === afterRunId) ?? null : null;
+        const beforeR = baselineRunId ? runs.find(x => x.id === baselineRunId) ?? null : null;
+
+        // 이 행 고유 상세는 항상 thisR 기준
+        inner.innerHTML = buildDetailHTML(thisR, afterR, beforeR);
+    }
+
+    function buildDetailHTML(thisR, afterR, beforeR) {
+        // ── 비교 섹션: BEFORE vs AFTER (전역 핀) ──
+        const mkRow = (label, bVal, aVal, unit = '', lowerBetter = true) => {
+            const bN = parseFloat(bVal);
+            const aN = parseFloat(aVal);
+            let delta = '';
+            if (!isNaN(bN) && !isNaN(aN) && bN > 0) {
+                const pct = ((aN - bN) / bN * 100).toFixed(1);
+                const good = lowerBetter ? aN <= bN : aN >= bN;
+                delta = `<span class="${good ? 'diff-pos' : 'diff-neg'}">${good ? '▼' : '▲'} ${Math.abs(pct)}%</span>`;
+            }
+            return `<tr><td style="color:#4a5568;padding:4px 8px;font-size:11px">${label}</td>
+      <td style="padding:4px 8px;font-size:11px">${bVal != null ? bVal + unit : '—'}</td>
+      <td style="padding:4px 8px;font-size:11px">${aVal != null ? aVal + unit : '—'}</td>
+      <td style="padding:4px 8px;font-size:11px">${delta}</td></tr>`;
+        };
+        const beforeLabel = beforeR ? '#' + beforeR.id : '없음';
+        const afterLabel = afterR ? '#' + afterR.id : '없음';
+        const compareSection = `
+    <div>
+      <div style="font-size:11px;color:#4a5568;margin-bottom:8px">
+        BEFORE <span style="color:#ed8936">#${beforeLabel}</span> vs AFTER <span style="color:#68d391">#${afterLabel}</span>
+        ${!beforeR || !afterR ? '<span style="color:#4a5568;font-size:10px"> (핀 미설정 — 버튼으로 지정)</span>' : ''}
+      </div>
+      <table style="font-size:12px">
+        <thead><tr style="color:#4a5568;font-size:10px">
+          <th style="padding:4px 8px">지표</th><th style="padding:4px 8px">Before</th><th style="padding:4px 8px">After</th><th style="padding:4px 8px">변화</th>
+        </tr></thead>
+        <tbody>
+          ${mkRow('Output 토큰', beforeR?.output_tokens ?? null, afterR?.output_tokens ?? null, '', true)}
+          ${mkRow('Cache Read', beforeR?.cache_read ?? null, afterR?.cache_read ?? null, '', false)}
+          ${mkRow('비용 (USD)', beforeR ? beforeR.billing_usd?.toFixed(4) ?? null : null, afterR ? (afterR.billing_usd || 0).toFixed(4) : null, '', true)}
+          ${mkRow('Turn 수', beforeR?.turn_count ?? null, afterR?.turn_count ?? null, '', true)}
+        </tbody>
+      </table>
+    </div>`;
+
+        // ── 이 행 고유 상세: 항상 thisR 기준 ──
+        const detailSection = `
+    <div>
+      <div style="font-size:11px;color:#4a5568;margin-bottom:8px">실험 상세 <span style="color:#c9d1e0">#${thisR.id}</span></div>
+      <table style="font-size:12px">
+        <tbody>
+          ${[['Branch', thisR.branch || '—'], ['Model', thisR.model || '(없음)'], ['Runner', thisR.runner || '—'],
+            ['LOC +', thisR.added_lines || 0], ['LOC -', thisR.deleted_lines || 0],
+            ['CLAUDE.md hash', thisR.claude_md_hash ? thisR.claude_md_hash.slice(0, 16) + '…' : '—']
+        ].map(([k, v]) => `<tr><td style="color:#4a5568;padding:3px 8px;font-size:11px">${k}</td><td style="padding:3px 8px;font-size:11px">${escHtml(String(v))}</td></tr>`).join('')}
+          <tr><td style="color:#4a5568;padding:3px 8px;font-size:11px;vertical-align:top">Notes</td>
+            <td style="padding:3px 8px;font-size:11px" id="notes-cell-${thisR.id}">
+              <span class="notes-display" onclick="editNotes(${thisR.id})" title="클릭하여 편집" style="cursor:pointer;color:${notesFor(thisR) ? 'inherit' : '#4a5568'}">${escHtml(notesFor(thisR) || '클릭하여 메모 추가…')}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px">${[1, 2, 3, 4, 5].map(n => `<button class="rating-btn" onclick="event.stopPropagation();rate(${thisR.id},${n})">${n}★</button>`).join('')}</div>
+    </div>`;
+
+        return compareSection + detailSection;
+    }
+
+    function renderConfigVersions(versions) {
+        const el = document.getElementById('configVersions');
+        const cnt = document.getElementById('cfgCount');
+        if (!versions || versions.length === 0) {
+            el.innerHTML = '<div style="color:#4a5568;padding:16px;text-align:center;font-size:12px">스냅샷 없음 — Stop Hook 실행 시 자동 저장</div>';
+            cnt.textContent = '';
+            return;
+        }
+        cnt.textContent = `(${versions.length}개)`;
+
+        // prev 해시 비교용
+        const sorted = [...versions].sort((a, b) => a.recorded_at > b.recorded_at ? 1 : -1);
+
+        el.innerHTML = sorted.map((v, i) => {
+            const prev = sorted[i - 1];
+            const manifest = v.manifest || (v.manifest_json ? JSON.parse(v.manifest_json) : {});
+            const fileKeys = Object.keys(manifest);
+
+            // diff vs prev
+            let diffSummary = '';
+            let fileLines = '';
+            const prevManifest = prev && (prev.manifest || (prev.manifest_json ? JSON.parse(prev.manifest_json) : null));
+            if (prevManifest) {
+                const pm = prevManifest;
+                const added = fileKeys.filter(k => !pm[k]);
+                const removed = Object.keys(pm).filter(k => !manifest[k]);
+                const modified = fileKeys.filter(k => pm[k] && pm[k] !== manifest[k]);
+                const parts = [];
+                if (added.length) parts.push(`<span class="diff-pos">+${added.length}</span>`);
+                if (modified.length) parts.push(`<span style="color:#f6ad55">~${modified.length}</span>`);
+                if (removed.length) parts.push(`<span class="diff-neg">-${removed.length}</span>`);
+                diffSummary = parts.length ? parts.join(' ') : '<span style="color:#4a5568">변경 없음</span>';
+
+                const shortName = p => p.replace(/^[.]claude[/]/, '').replace(/^CLAUDE/, 'CLAUDE');
+                const mkChip = (p, cls, prefix) => {
+                    const esc = p.replace(/'/g, "\\'");
+                    return `<span class="file-chip"
+          data-snapshot="${v.root_hash}" data-file="${p}"
+          onclick="event.stopPropagation();openSnapshotFile('${v.root_hash}','${esc}')"
+          title="클릭하여 이 파일 바로 보기"
+          style="display:inline-flex;align-items:center;gap:3px;background:#1a2035;border:1px solid #2d3748;border-radius:4px;padding:1px 6px;margin:2px 2px 0 0;font-size:10px;font-family:monospace;cursor:pointer;transition:border-color .15s,background .15s"
+          onmouseover="this.style.borderColor='#60a5fa';this.style.background='#1e2a45'"
+          onmouseout="this.style.borderColor='#2d3748';this.style.background='#1a2035'">
+          <span class="${cls}">${prefix}</span><span style="color:#c9d1e0">${shortName(p)}</span>
+        </span>`;
+                };
+                const allChips = [
+                    ...modified.map(p => mkChip(p, '', '~')),
+                    ...added.map(p => mkChip(p, 'diff-pos', '+')),
+                    ...removed.map(p => mkChip(p, 'diff-neg', '-')),
+                ];
+                const visibleChips = allChips.slice(0, 5);
+                const restCount = allChips.length - 5;
+                const moreChip = restCount > 0
+                    ? `<span style="display:inline-flex;align-items:center;background:#1e2535;border:1px solid #2d3748;border-radius:4px;padding:1px 6px;margin:2px 2px 0 0;font-size:10px;color:#4a5568">+${restCount}</span>`
+                    : '';
+                fileLines = allChips.length
+                    ? `<div style="margin-top:5px;line-height:1.8">${visibleChips.join('')}${moreChip}</div>`
+                    : '';
+            } else {
+                diffSummary = `<span style="color:#b794f4">최초 스냅샷</span>`;
+                const initChips = fileKeys.map(p => {
+                    const esc = p.replace(/'/g, "\\'");
+                    return `<span class="file-chip"
+          data-snapshot="${v.root_hash}" data-file="${p}"
+          onclick="event.stopPropagation();openSnapshotFile('${v.root_hash}','${esc}')"
+          title="클릭하여 이 파일 바로 보기"
+          style="display:inline-flex;align-items:center;gap:3px;background:#1a2035;border:1px solid #2d3748;border-radius:4px;padding:1px 6px;margin:2px 2px 0 0;font-size:10px;font-family:monospace;color:#718096;cursor:pointer;transition:border-color .15s,background .15s"
+          onmouseover="this.style.borderColor='#60a5fa';this.style.background='#1e2a45'"
+          onmouseout="this.style.borderColor='#2d3748';this.style.background='#1a2035'"
+        >${p.replace(/^[.]claude[/]/, '')}</span>`;
+                });
+                const initVisible = initChips.slice(0, 5);
+                const initRest = initChips.length - 5;
+                const initMore = initRest > 0 ? `<span style="display:inline-flex;align-items:center;background:#1e2535;border:1px solid #2d3748;border-radius:4px;padding:1px 6px;margin:2px 2px 0 0;font-size:10px;color:#4a5568">+${initRest}</span>` : '';
+                fileLines = `<div style="margin-top:5px;line-height:1.8">${initVisible.join('')}${initMore}</div>`;
+            }
+
+            const ratio = v.size_before ? (v.size_after / v.size_before * 100).toFixed(0) : '?';
+            const isLatest = i === sorted.length - 1;
+
+            return `<div style="padding:10px 12px;border-bottom:1px solid #1e2535;${isLatest ? 'background:#0f1724;' : ''}">
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="/snapshot/${v.root_hash}" target="_blank" style="font-family:monospace;font-size:12px;color:#b794f4;text-decoration:none;flex-shrink:0">
+          ${isLatest ? '<span style="color:#48bb78;font-size:10px;margin-right:4px">●</span>' : '<span style="color:#2d3748;font-size:10px;margin-right:4px">○</span>'}${v.root_hash}
+        </a>
+        <span style="font-size:11px;color:#9ca3af;flex-shrink:0">${(v.recorded_at || '').slice(0, 16)}</span>
+        <span style="font-size:11px;color:#a0aec0;flex-shrink:0">${v.file_count}파일 · ${ratio}%압축</span>
+        <span style="font-size:11px">${diffSummary}</span>
+      </div>
+      ${fileLines}
+    </div>`;
+        }).reverse().join('');  // 최신 순
+    }
+
+    async function importSnapshot(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const status = document.getElementById('snapImportStatus');
+        status.style.color = '#63b3ed';
+        status.textContent = '불러오는 중…';
+        try {
+            const text = await file.text();
+            const payload = JSON.parse(text);
+            if (payload.exp_snapshot !== '1') throw new Error('유효한 .snap 파일이 아닙니다');
+            const res = await fetch('/snapshot/import', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: text,
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || '서버 오류');
+            status.style.color = '#68d391';
+            status.textContent = data.is_new ? `✓ 가져오기 완료 (${data.root_hash.slice(0, 8)})` : '이미 존재하는 스냅샷';
+            if (data.is_new) fetchData();
+        } catch (e) {
+            status.style.color = '#fc8181';
+            status.textContent = '✗ ' + e.message;
+        }
+        input.value = '';
+        setTimeout(() => {
+            status.textContent = '';
+        }, 4000);
+    }
+
+    function openSnapshotFile(snapshotId, filePath) {
+        // 새 탭으로 뷰어 열기 — URL에 파일 경로를 hash로 전달
+        const url = '/snapshot/' + snapshotId + '#file=' + encodeURIComponent(filePath);
+        window.open(url, '_blank');
+    }
+
+    function closeModal(e) {
+        if (!e || e.target === document.getElementById('modal'))
+            document.getElementById('modal').style.display = 'none';
+    }
+
+    async function rate(runId, score) {
+        await fetch('/rate/' + runId + '/' + score);
+        if (allData) render(allData);
+    }
+
+    function setBaseline(runId) {
+        if (seqCompareMode) exitSeqCompare();
+        baselineRunId = runId;
+        if (afterRunId === runId) afterRunId = null; // after와 충돌 시 after 리셋 → 최신으로 복귀
+        if (allData) render(allData);
+        tlUpdateDeltas();
+    }
+
+    function setAfter(runId) {
+        afterRunId = runId;
+        if (baselineRunId === runId) baselineRunId = null; // before와 충돌 시 before 리셋
+        if (allData) render(allData);
+        // 열려 있는 확장 패널 갱신
+        document.querySelectorAll('.expanded-detail').forEach(row => {
+            if (row.style.display !== 'none') {
+                const id = parseInt(row.id.replace('det-', ''));
+                refreshDetail(id);
+            }
+        });
+    }
+
+    // ── Sequential Compare (1~N) ──
+    function _seqCandidates() {
+        if (!allData) return [];
+        const {runs: allRuns} = allData;
+        const sorted = [...(allRuns || [])].sort((a, b) => a.id - b.id);
+        if (!seqAfterRunId) return [];
+        return sorted.filter(r => r.id < seqAfterRunId);
+    }
+
+    function toggleSeqCompare() {
+        if (seqCompareMode) {
+            exitSeqCompare();
+            return;
+        }
+        if (!allData) return;
+        const {runs: allRuns} = allData;
+        const sorted = [...(allRuns || [])].sort((a, b) => b.id - a.id);
+        if (sorted.length < 2) return;
+        // AFTER = current afterRunId (user-selected) or newest
+        seqAfterRunId = afterRunId || sorted[0].id;
+        seqStep = 0;
+        seqCompareMode = true;
+        document.getElementById('seqCompareBtn').classList.add('active');
+        const cands = _seqCandidates();
+        if (cands.length === 0) {
+            exitSeqCompare();
+            return;
+        }
+        _renderSeqStepBar(cands);
+        _applySeqStep(cands, seqStep);
+    }
+
+    function exitSeqCompare() {
+        seqCompareMode = false;
+        seqAfterRunId = null;
+        seqStep = 0;
+        document.getElementById('seqCompareBtn').classList.remove('active');
+        document.getElementById('seqStepBar').classList.remove('visible');
+        document.getElementById('seqStepBar').innerHTML = '<span class="seq-after-label" id="seqAfterLabel">AFTER: —</span>';
+    }
+
+    function _renderSeqStepBar(cands) {
+        const bar = document.getElementById('seqStepBar');
+        const afterLabel = document.getElementById('seqAfterLabel') || document.createElement('span');
+        afterLabel.id = 'seqAfterLabel';
+        afterLabel.className = 'seq-after-label';
+        afterLabel.textContent = `AFTER: #${seqAfterRunId}`;
+
+        let html = `<span class="seq-after-label">AFTER: #${seqAfterRunId} &nbsp;|&nbsp; BEFORE:</span>`;
+        cands.forEach((r, i) => {
+            const cls = i === seqStep ? 'seq-step-btn active' : 'seq-step-btn';
+            html += `<button class="${cls}" onclick="seqGoto(${i})">#${r.id}</button>`;
+        });
+        bar.innerHTML = html;
+        bar.classList.add('visible');
+    }
+
+    function seqGoto(idx) {
+        const cands = _seqCandidates();
+        if (idx < 0 || idx >= cands.length) return;
+        seqStep = idx;
+        _applySeqStep(cands, idx);
+        _renderSeqStepBar(cands);
+    }
+
+    function _applySeqStep(cands, idx) {
+        const before = cands[idx];
+        baselineRunId = before.id;
+        if (allData) render(allData);
+        tlUpdateDeltas();
+    }
+
+    // ── Guide Drawer ──
+    function openGuide() {
+        document.getElementById('guideDrawer').classList.add('open');
+        document.getElementById('guideBackdrop').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeGuide() {
+        document.getElementById('guideDrawer').classList.remove('open');
+        document.getElementById('guideBackdrop').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    function switchGuideTab(idx, el) {
+        document.querySelectorAll('.guide-tab').forEach((t, i) => {
+            t.classList.toggle('active', i === idx);
+        });
+        document.querySelectorAll('.guide-section').forEach((s, i) => {
+            s.classList.toggle('active', i === idx);
+        });
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeGuide();
+    });
+
+    // ── Analysis ──
+    function renderAnalysis(ana) {
+        const meta = document.getElementById('analysisMeta');
+        const modelTag = document.getElementById('analysisModelTag');
+        const body = document.getElementById('analysisBody');
+        if (!ana) return;
+        if (ana.error) {
+            body.innerHTML = `<span style="color:#fc8181">오류: ${ana.error}</span>`;
+            return;
+        }
+        const r = ana.result;
+        if (!r) return;
+        meta.textContent = `(${ana.cached ? '캐시됨' : '신규'} · ${(ana.recorded_at || '').slice(0, 16)})`;
+        modelTag.textContent = ana.model || '';
+        modelTag.style.display = ana.model ? '' : 'none';
+
+        const te = r.efficiency || {};
+        const scoreColor = te.score >= 7 ? '#48bb78' : te.score >= 4 ? '#f6ad55' : '#fc8181';
+        const priColor = {'high': '#fc8181', 'mid': '#f6ad55', 'low': '#68d391'};
+
+        const opts = (r.top3 || []).map(o =>
+            `<div style="background:#0f1724;border-left:3px solid ${priColor[o.p] || '#4a5568'};border-radius:0 6px 6px 0;padding:5px 10px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
+      <span style="color:#c9d1e0;font-size:12px">${o.title}</span>
+      <span style="font-size:10px;color:#4a5568">${o.p} · ~${o.save_pct || 0}%</span>
+    </div>`).join('');
+
+        const rules = (r.rules || []).map(f => {
+            const c = {
+                'keep': '#48bb78',
+                'trim': '#f6ad55',
+                'merge': '#63b3ed',
+                'remove': '#fc8181'
+            }[f.rec] || '#4a5568';
+            return `<span style="display:inline-flex;align-items:center;gap:4px;background:#0f1724;border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:2px 7px">
+      <span style="font-family:monospace;font-size:10px;color:#90cdf4">${f.f}</span>
+      <span style="color:${c};font-size:10px;font-weight:600">${f.rec}</span>
+    </span>`;
+        }).join('');
+
+        body.innerHTML = `
+    <div style="background:#0f1724;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#c9d1e0;line-height:1.6">${r.summary || ''}</div>
+    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:16px;align-items:start;margin-bottom:10px">
+      <div style="text-align:center;padding:8px 14px;background:#0f1724;border-radius:8px">
+        <div style="font-size:26px;font-weight:700;color:${scoreColor};line-height:1">${te.score || '—'}</div>
+        <div style="font-size:9px;color:#4a5568;margin-top:2px">/10</div>
+      </div>
+      <div style="font-size:11px;color:#a0aec0;padding-top:4px">${te.note || ''}</div>
+      <div style="font-size:11px;color:#68d391;padding-top:4px;font-weight:500">${r.next || '—'}</div>
+    </div>
+    ${opts ? `<div style="margin-bottom:8px">${opts}</div>` : ''}
+    ${rules ? `<div class="rules-tags">${rules}</div>` : ''}
+  `;
+    }
+
+    let _histOpen = false;
+
+    async function toggleAnalysisHistory() {
+        const el = document.getElementById('analysisHistory');
+        const btn = document.getElementById('histBtn');
+        _histOpen = !_histOpen;
+        btn.classList.toggle('active', _histOpen);
+        if (!_histOpen) {
+            el.style.display = 'none';
+            return;
+        }
+        el.style.display = 'block';
+        el.innerHTML = '<span style="color:#4a5568;font-size:11px">불러오는 중…</span>';
+        try {
+            const list = await fetch('/analyze/history').then(r => r.json());
+            if (!list.length) {
+                el.innerHTML = '<span style="color:#4a5568;font-size:11px">이력 없음</span>';
+                return;
+            }
+            el.innerHTML = '<div style="font-size:10px;color:#4a5568;text-transform:uppercase;margin-bottom:6px">분석 이력</div>' +
+                list.map(h => `
+        <div style="display:flex;align-items:center;gap:12px;padding:5px 8px;border-radius:6px;cursor:pointer;transition:background .1s"
+             onmouseover="this.style.background='#1a2035'" onmouseout="this.style.background=''"
+             onclick="loadAnalysis(${h.id})">
+          <span style="font-family:monospace;font-size:11px;color:#b794f4">#${h.id}</span>
+          <span style="font-size:11px;color:#9ca3af">${(h.recorded_at || '').slice(0, 16)}</span>
+          <span style="font-family:monospace;font-size:10px;color:#a0aec0">${h.config_hash.slice(0, 8)}</span>
+          ${h.run_count != null ? `<span style="font-size:10px;color:#4a5568">n=${h.run_count}</span>` : ''}
+          <span style="font-size:10px;color:#4a5568">${h.model}</span>
+        </div>`).join('');
+        } catch (e) {
+            el.innerHTML = `<span style="color:#fc8181;font-size:11px">오류: ${e.message}</span>`;
+        }
+    }
+
+    async function loadAnalysis(id) {
+        const body = document.getElementById('analysisBody');
+        const meta = document.getElementById('analysisMeta');
+        body.innerHTML = '<span style="color:#63b3ed;font-size:12px">불러오는 중…</span>';
+        try {
+            const data = await fetch('/analyze/' + id).then(r => r.json());
+            if (data.error) {
+                body.innerHTML = `<span style="color:#fc8181">${data.error}</span>`;
+                return;
+            }
+            meta.textContent = `(이력 #${data.id} · ${(data.recorded_at || '').slice(0, 16)})`;
+            document.getElementById('analysisModelTag').textContent = data.model || '';
+            renderAnalysis(data);
+        } catch (e) {
+            body.innerHTML = `<span style="color:#fc8181">오류: ${e.message}</span>`;
+        }
+    }
+
+    async function runAnalysis(force) {
+        const body = document.getElementById('analysisBody');
+        const meta = document.getElementById('analysisMeta');
+        body.innerHTML = '<span style="color:#63b3ed">분석 중… (Haiku 모델 호출 중)</span>';
+        meta.textContent = '';
+        try {
+            const url = force ? '/analyze/force' : '/analyze';
+            const res = await fetch(url);
+            const data = await res.json();
+            renderAnalysis(data);
+        } catch (e) {
+            body.innerHTML = `<span style="color:#fc8181">요청 실패: ${e.message}</span>`;
+        }
+    }
+
+    // ── Turn Timeline ──
+    const TL_CTX_WINDOW = 200000;
+    const TL_RULES_EST_TOKENS = 8000;
+
+    // Model pricing table — keyed by family substring match order
+    const MODEL_PRICING = [
+        {
+            match: 'opus',
+            label: 'Opus',
+            badgeCls: 'model-badge-opus',
+            color: '#f78166',
+            input: 15.0,
+            output: 75.0,
+            cacheRead: 1.5
+        },
+        {
+            match: 'haiku',
+            label: 'Haiku',
+            badgeCls: 'model-badge-haiku',
+            color: '#68d391',
+            input: 0.25,
+            output: 1.25,
+            cacheRead: 0.03
+        },
+        {
+            match: 'sonnet',
+            label: 'Sonnet',
+            badgeCls: 'model-badge-sonnet',
+            color: '#63b3ed',
+            input: 3.0,
+            output: 15.0,
+            cacheRead: 0.3
+        },
+    ];
+    const MODEL_PRICING_DEFAULT = MODEL_PRICING[2]; // Sonnet fallback
+
+    function tlGetPricing(model) {
+        const m = (model || '').toLowerCase();
+        return MODEL_PRICING.find(p => m.includes(p.match)) || MODEL_PRICING_DEFAULT;
+    }
+
+    let tlTurns = [];
+    let tlCurrentTurn = 0;
+    let tlPlaying = false;
+    let tlPlayTimer = null;
+    let tlChart = null;
+
+    let _tlLastKnownRunId = 0;
+
+    function tlPopulateSessions(runs) {
+        const sel = document.getElementById('tlSessionSelect');
+        const prev = sel.value;
+        while (sel.options.length > 1) sel.remove(1);
+        runs.slice(0, 30).forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.session_id || '';
+            const dt = (r.recorded_at || '').slice(0, 16);
+            const modelTag = r.model ? ` [${tlGetPricing(r.model).label}]` : '';
+            opt.textContent = `#${r.id} ${dt} (${r.runner || ''})${modelTag}`;
+            sel.appendChild(opt);
+        });
+
+        const newestId = runs.length > 0 ? runs[0].id : 0;
+        if (_tlLastKnownRunId === 0 && runs.length > 0) {
+            // 초기 로드: 최상위(최신) run 자동 선택
+            const firstRun = runs[0];
+            if (firstRun.session_id) {
+                sel.value = firstRun.session_id;
+                tlLoadSession(firstRun.session_id);
+            }
+        } else if (newestId > _tlLastKnownRunId && _tlLastKnownRunId > 0) {
+            // SSE push로 새 run 추가됐을 때만 자동 전환
+            const newRun = runs[0];
+            if (newRun && newRun.session_id) {
+                sel.value = newRun.session_id;
+                tlLoadSession(newRun.session_id);
+            }
+        } else if (prev) {
+            sel.value = prev;
+        }
+        if (newestId > 0) _tlLastKnownRunId = newestId;
+    }
+
+    async function tlLoadSession(sessionId) {
+        if (!sessionId) return;
+        const badge = document.getElementById('tlTurnBadge');
+        badge.textContent = '로드 중…';
+        try {
+            let data;
+            if (turnCache.has(sessionId)) {
+                data = turnCache.get(sessionId);
+            } else {
+                data = await fetch('/turns/' + sessionId).then(r => r.json());
+                if (!data.error) turnCache.set(sessionId, data);
+            }
+            if (data.error) {
+                badge.textContent = '오류: ' + data.error;
+                tlTurns = [];
+                return;
+            }
+            tlTurns = data.turns || [];
+            const slider = document.getElementById('tlSlider');
+            slider.min = 1;
+            slider.max = Math.max(tlTurns.length, 1);
+            slider.value = tlTurns.length;
+            tlCurrentTurn = tlTurns.length;
+            tlRender(tlCurrentTurn);
+            tlBuildChart();
+            tlRenderRules(sessionId);
+            tlRenderSessionSummary();
+        } catch (e) {
+            badge.textContent = '오류: ' + e.message;
+        }
+    }
+
+    function tlSeek(turn) {
+        tlCurrentTurn = turn;
+        tlRender(turn);
+        tlHighlightCurrentTurn();
+    }
+
+    function tlTogglePlay() {
+        tlPlaying = !tlPlaying;
+        const btn = document.getElementById('tlPlayBtn');
+        btn.textContent = tlPlaying ? '⏸' : '▶';
+        if (tlPlaying) {
+            if (tlCurrentTurn >= tlTurns.length) tlCurrentTurn = 1;
+            tlPlayStep();
+        } else {
+            clearTimeout(tlPlayTimer);
+        }
+    }
+
+    function tlPlayStep() {
+        if (!tlPlaying) return;
+        if (tlCurrentTurn >= tlTurns.length) {
+            tlPlaying = false;
+            document.getElementById('tlPlayBtn').textContent = '▶';
+            return;
+        }
+        tlCurrentTurn++;
+        document.getElementById('tlSlider').value = tlCurrentTurn;
+        tlRender(tlCurrentTurn);
+        tlHighlightCurrentTurn();
+        tlPlayTimer = setTimeout(tlPlayStep, 600);
+    }
+
+    function tlCalcCost(t) {
+        const p = tlGetPricing(t.model);
+        return (t.input_tokens || 0) * p.input / 1e6
+            + (t.output_tokens || 0) * p.output / 1e6
+            + (t.cache_read || 0) * p.cacheRead / 1e6;
+    }
+
+    function tlCalcHitRate(t) {
+        const total = (t.input_tokens || 0) + (t.cache_read || 0) + (t.cache_write || 0);
+        return total > 0 ? (t.cache_read || 0) / total * 100 : 0;
+    }
+
+    function tlDeltaBadge(elId, delta, fmt, lowerIsBetter, label) {
+        const el = document.getElementById(elId);
+        if (!el || delta == null || isNaN(delta)) {
+            if (el) el.innerHTML = '';
+            return;
+        }
+        const positive = lowerIsBetter ? delta < 0 : delta > 0;
+        const cls = Math.abs(delta) < 0.001 ? 'neutral' : positive ? 'good' : 'bad';
+        const arrow = delta > 0 ? '▲' : '▼';
+        el.innerHTML = `<span class="delta-badge ${cls}">${arrow} ${fmt(Math.abs(delta))} ${label || 'vs Turn 1'}</span>`;
+    }
+
+    // baseline turn = turn 1 of the current session (first assistant turn)
+    let tlBaselineTurn = null;
+
+    function tlRender(turn) {
+        if (!tlTurns.length) return;
+        const idx = Math.max(0, Math.min(turn - 1, tlTurns.length - 1));
+        const t = tlTurns[idx];
+        document.getElementById('tlTurnBadge').textContent = `Turn ${turn} / ${tlTurns.length}`;
+
+        // tokens
+        document.getElementById('tlInTok').textContent = (t.input_tokens || 0).toLocaleString('ko');
+        document.getElementById('tlOutTok').textContent = (t.output_tokens || 0).toLocaleString('ko');
+
+        // cache hit rate
+        const hitRate = tlCalcHitRate(t);
+        document.getElementById('tlCacheRate').textContent = hitRate.toFixed(1) + '%';
+        document.getElementById('tlCacheNote').textContent = `캐시 읽기 ${(t.cache_read || 0).toLocaleString('ko')} tok`;
+
+        // cost estimate + model badge
+        const cost = tlCalcCost(t);
+        document.getElementById('tlCost').textContent = '$' + cost.toFixed(4);
+        const pricing = tlGetPricing(t.model);
+        const badgeEl = document.getElementById('tlModelBadge');
+        if (badgeEl) {
+            badgeEl.textContent = pricing.label;
+            badgeEl.className = 'model-badge ' + pricing.badgeCls;
+        }
+
+        // delta: prefer baselineRunId avg/turn over turn-1
+        let base = null;
+        let deltaLabel = 'vs Turn 1';
+        const bRun = baselineRunId && allData
+            ? (allData.runs || []).find(r => r.id === baselineRunId) : null;
+        if (bRun && (bRun.turn_count || 0) > 0) {
+            const tc = bRun.turn_count;
+            base = {
+                input_tokens: (bRun.input_tokens || 0) / tc,
+                output_tokens: (bRun.output_tokens || 0) / tc,
+                cache_read: (bRun.cache_read || 0) / tc,
+                cache_write: 0,
+                model: bRun.model || '',
+                _cost: (bRun.billing_usd || 0) / tc,
+            };
+            base._hitRate = tlCalcHitRate(base);
+            deltaLabel = `vs #${bRun.id} 평균/턴`;
+        } else if (tlBaselineTurn && turn > 1) {
+            base = tlBaselineTurn;
+            base._hitRate = tlCalcHitRate(base);
+            base._cost = tlCalcCost(base);
+        }
+        if (base) {
+            const baseHitRate = base._hitRate != null ? base._hitRate : tlCalcHitRate(base);
+            const baseCost = base._cost != null ? base._cost : tlCalcCost(base);
+            const dIn = (t.input_tokens || 0) - (base.input_tokens || 0);
+            const dOut = (t.output_tokens || 0) - (base.output_tokens || 0);
+            const dHit = hitRate - baseHitRate;
+            const dCost = cost - baseCost;
+            tlDeltaBadge('tlInTokDelta', dIn, v => v.toLocaleString('ko') + ' tok', true, deltaLabel);
+            tlDeltaBadge('tlOutTokDelta', dOut, v => v.toLocaleString('ko') + ' tok', true, deltaLabel);
+            tlDeltaBadge('tlCacheRateDelta', dHit, v => v.toFixed(1) + '%', false, deltaLabel);
+            tlDeltaBadge('tlCostDelta', dCost, v => '$' + v.toFixed(4), true, deltaLabel);
+        } else {
+            ['tlInTokDelta', 'tlOutTokDelta', 'tlCacheRateDelta', 'tlCostDelta'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+        }
+
+        // context bar
+        const inputTok = t.input_tokens || 0;
+        const outTok = t.output_tokens || 0;
+        const sysFrac = Math.min(TL_RULES_EST_TOKENS / Math.max(inputTok, 1), 0.5);
+        const sysTokens = Math.round(inputTok * sysFrac);
+        const histTokens = inputTok - sysTokens;
+        const totalUsed = inputTok + outTok;
+        const usedPct = Math.min(totalUsed / TL_CTX_WINDOW * 100, 100);
+        const sysPct = Math.min(sysTokens / TL_CTX_WINDOW * 100, 100);
+        const histPct = Math.min(histTokens / TL_CTX_WINDOW * 100, 100);
+        const outPct = Math.min(outTok / TL_CTX_WINDOW * 100, 100);
+        const freePct = Math.max(100 - sysPct - histPct - outPct, 0);
+        document.getElementById('tlCtxSystem').style.width = sysPct.toFixed(1) + '%';
+        document.getElementById('tlCtxHistory').style.width = histPct.toFixed(1) + '%';
+        document.getElementById('tlCtxOutput').style.width = outPct.toFixed(1) + '%';
+        document.getElementById('tlCtxFree').style.width = freePct.toFixed(1) + '%';
+        document.getElementById('tlCtxInfo').textContent = `${usedPct.toFixed(1)}% 사용 (${totalUsed.toLocaleString('ko')} / ${TL_CTX_WINDOW.toLocaleString('ko')})`;
+    }
+
+    function tlUpdateDeltas() {
+        // called when baselineRunId changes — re-render current turn
+        if (tlTurns.length && tlCurrentTurn > 0) tlRender(tlCurrentTurn);
+    }
+
+    function tlDetectCacheMisses() {
+        // spike detection: input_tokens increases by >50% compared to previous turn
+        const misses = [];
+        for (let i = 1; i < tlTurns.length; i++) {
+            const prev = tlTurns[i - 1].input_tokens || 0;
+            const cur = tlTurns[i].input_tokens || 0;
+            if (prev > 0 && cur > prev * 1.5 && cur - prev > 5000) {
+                misses.push(i); // 0-based index
+            }
+        }
+        return misses;
+    }
+
+    let _tlMissSet = new Set();
+
+    function _tlChartColors(activeTurnIdx) {
+        // activeTurnIdx: 0-based index of current turn (-1 = no highlight)
+        const hasActive = activeTurnIdx >= 0;
+        const inputBg = tlTurns.map((t, i) => {
+            const base = tlGetPricing(t.model).color;
+            if (!hasActive) return base + '80';
+            return i === activeTurnIdx ? base + 'ff' : base + '28';
+        });
+        const inputBorder = tlTurns.map((_, i) => {
+            if (_tlMissSet.has(i) && (!hasActive || i === activeTurnIdx)) return 'rgba(252,129,129,0.9)';
+            if (hasActive && i === activeTurnIdx) return '#ffffff';
+            return 'transparent';
+        });
+        const dimAlpha = hasActive ? '18' : '50';
+        const cacheReadBg = tlTurns.map((_, i) =>
+            !hasActive || i === activeTurnIdx ? 'rgba(184,148,244,0.5)' : `rgba(184,148,244,0.${dimAlpha})`
+        );
+        const outputBg = tlTurns.map((_, i) =>
+            !hasActive || i === activeTurnIdx ? 'rgba(104,211,145,0.5)' : `rgba(104,211,145,0.${dimAlpha})`
+        );
+        return {inputBg, inputBorder, cacheReadBg, outputBg};
+    }
+
+    function tlHighlightCurrentTurn() {
+        if (!tlChart || !tlTurns.length) return;
+        const idx = tlCurrentTurn > 0 ? tlCurrentTurn - 1 : -1;
+        const {inputBg, inputBorder, cacheReadBg, outputBg} = _tlChartColors(idx);
+        tlChart.data.datasets[0].backgroundColor = inputBg;
+        tlChart.data.datasets[0].borderColor = inputBorder;
+        tlChart.data.datasets[1].backgroundColor = cacheReadBg;
+        tlChart.data.datasets[2].backgroundColor = outputBg;
+        tlChart.update('none');
+    }
+
+    function tlBuildChart() {
+        const ctx = document.getElementById('tlChart').getContext('2d');
+        if (tlChart) tlChart.destroy();
+        tlBaselineTurn = tlTurns.length > 0 ? tlTurns[0] : null;
+
+        const labels = tlTurns.map(t => t.turn);
+        const misses = tlDetectCacheMisses();
+        _tlMissSet = new Set(misses);
+
+        const {inputBg, inputBorder, cacheReadBg, outputBg} = _tlChartColors(-1);
+
+        tlChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: '입력', data: tlTurns.map(t => t.input_tokens || 0),
+                        backgroundColor: inputBg, borderColor: inputBorder, borderWidth: 2, stack: 'a'
+                    },
+                    {
+                        label: '캐시읽기', data: tlTurns.map(t => t.cache_read || 0),
+                        backgroundColor: cacheReadBg, stack: 'a'
+                    },
+                    {
+                        label: '출력', data: tlTurns.map(t => t.output_tokens || 0),
+                        backgroundColor: outputBg, stack: 'b'
+                    },
+                ],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: {
+                    legend: {display: false},
+                    tooltip: {
+                        callbacks: {
+                            title: function (items) {
+                                const idx = items[0] && items[0].dataIndex;
+                                const t = tlTurns[idx];
+                                if (!t) return '';
+                                const p = tlGetPricing(t.model);
+                                const cost = tlCalcCost(t);
+                                return `Turn #${t.turn} (${p.label}) — $${cost.toFixed(5)}`;
+                            },
+                            afterBody: function (items) {
+                                const idx = items[0] && items[0].dataIndex;
+                                if (_tlMissSet.has(idx)) return ['🔴 Cache Miss Spike'];
+                                return [];
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: {color: '#4a5568', maxTicksLimit: 10, font: {size: 9}},
+                        grid: {color: '#1e2535'}
+                    },
+                    y: {stacked: false, ticks: {color: '#4a5568', font: {size: 9}}, grid: {color: '#1e2535'}},
+                },
+            },
+        });
+
+        // cache miss count badge
+        const badge = document.getElementById('tlTurnBadge');
+        if (misses.length > 0) {
+            const existing = document.getElementById('tlCacheMissBadge');
+            if (!existing) {
+                const b = document.createElement('span');
+                b.id = 'tlCacheMissBadge';
+                b.style.cssText = 'margin-left:8px;background:rgba(252,129,129,.15);color:#fc8181;border:1px solid rgba(252,129,129,.3);border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700';
+                b.textContent = `🔴 Cache Miss ×${misses.length}`;
+                badge.parentNode.insertBefore(b, badge.nextSibling);
+            } else {
+                existing.textContent = `🔴 Cache Miss ×${misses.length}`;
+            }
+        }
+    }
+
+    async function tlRenderRules(sessionId) {
+        const el = document.getElementById('tlRules');
+        // mock rules list seeded from known .claude rule files (static — same each session)
+        const mockRules = [
+            {file: 'CLAUDE.md', tokens: 1800},
+            {file: '.claude/rules/java-spring-rules.md', tokens: 1400},
+            {file: '.claude/rules/java-code-style.md', tokens: 1100},
+            {file: '.claude/rules/git.md', tokens: 600},
+            {file: '.claude/rules/openapi-conventions.md', tokens: 900},
+            {file: '.claude/rules/observability.md', tokens: 400},
+            {file: '.claude/rules/notion-csv.md', tokens: 500},
+        ];
+        el.innerHTML = mockRules.map(r => `
+    <div class="tl-rule-item">
+      <div class="tl-rule-dot"></div>
+      <span>${r.file}</span>
+      <span class="tl-rule-tokens">~${r.tokens.toLocaleString('ko')} tok</span>
+    </div>`).join('');
+    }
+
+    function tlRenderSessionSummary() {
+        const el = document.getElementById('tlSessionSummary');
+        if (!el || !tlTurns.length) {
+            if (el) el.innerHTML = '';
+            return;
+        }
+
+        const totalCost = tlTurns.reduce((s, t) => s + tlCalcCost(t), 0);
+        const totalIn = tlTurns.reduce((s, t) => s + (t.input_tokens || 0), 0);
+        const totalOut = tlTurns.reduce((s, t) => s + (t.output_tokens || 0), 0);
+
+        // model breakdown
+        const modelMap = {};
+        tlTurns.forEach(t => {
+            const p = tlGetPricing(t.model);
+            modelMap[p.label] = (modelMap[p.label] || 0) + 1;
+        });
+        const total = tlTurns.length;
+        const modelEntries = Object.entries(modelMap).sort((a, b) => b[1] - a[1]);
+        const isMixed = modelEntries.length > 1;
+        const modelParts = modelEntries.map(([label, cnt], i) => {
+            const pct = (cnt / total * 100).toFixed(0);
+            const pricing = MODEL_PRICING.find(p => p.label === label) || MODEL_PRICING_DEFAULT;
+            const sep = isMixed && i < modelEntries.length - 1
+                ? `<span style="color:#4a5568;margin:0 4px">|</span>` : '';
+            return `<span class="model-badge ${pricing.badgeCls}">${label} ${pct}% (${cnt}회)</span>${sep}`;
+        }).join('');
+
+        el.innerHTML = `총 비용: <strong>$${totalCost.toFixed(4)}</strong> (추정) &nbsp;|&nbsp; 입력 ${totalIn.toLocaleString('ko')} tok &nbsp;|&nbsp; 출력 ${totalOut.toLocaleString('ko')} tok &nbsp;|&nbsp; ${modelParts}`;
+    }
+
+    // 초기 로드
+    fetch('/data').then(r => r.json()).then(render).catch(() => renderEmpty());
+    _checkVersion();
+
+    // SSE
+    const es = new EventSource('/events');
+    es.onmessage = e => render(JSON.parse(e.data));
+    es.onerror = () => {
+        document.getElementById('status').textContent = '연결 끊김 — 재연결 중…';
+    };
+</script>
+</body>
+</html>"""
+
+
+# ─────────────────────────────────────────────────────────────
+# HARNESS_HTML  —  Claude Code 하네스 탐색 & 진단 대시보드
+# ─────────────────────────────────────────────────────────────

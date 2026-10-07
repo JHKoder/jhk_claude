@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Claude Code Harness Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'monospace']}
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        /* scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* tree indent */
+        .tree-child {
+            border-left: 1px solid #1e293b;
+            margin-left: 14px;
+            padding-left: 8px;
+        }
+
+        /* syntax highlight tokens */
+        .tk-kw {
+            color: #c084fc;
+        }
+
+        .tk-str {
+            color: #86efac;
+        }
+
+        .tk-num {
+            color: #fbbf24;
+        }
+
+        .tk-cm {
+            color: #475569;
+            font-style: italic;
+        }
+
+        .tk-key {
+            color: #93c5fd;
+        }
+
+        .tk-fn {
+            color: #67e8f9;
+        }
+
+        .tk-bool {
+            color: #f97316;
+        }
+
+        /* flow diagram */
+        .flow-line {
+            position: absolute;
+            background: #334155;
+            transform-origin: left center;
+        }
+
+        .flow-node {
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .flow-node:hover {
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5);
+        }
+
+        /* accordion */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .accordion-content.open {
+            max-height: 600px;
+        }
+
+        /* hook animation */
+        @keyframes flowPulse {
+            0% {
+                opacity: 0.2;
+                transform: scaleX(0);
+            }
+            50% {
+                opacity: 1;
+                transform: scaleX(1);
+            }
+            100% {
+                opacity: 0.6;
+                transform: scaleX(1);
+            }
+        }
+
+        @keyframes blockFlash {
+            0%, 100% {
+                background: rgba(239, 68, 68, 0.1);
+            }
+            50% {
+                background: rgba(239, 68, 68, 0.35);
+            }
+        }
+
+        .anim-flow {
+            animation: flowPulse 0.8s ease forwards;
+        }
+
+        .anim-block {
+            animation: blockFlash 0.6s ease 2;
+        }
+
+        /* progress bar */
+        .prog-fill {
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* tag pill */
+        .tag-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+
+        .tag-emerald {
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        .tag-indigo {
+            background: rgba(99, 102, 241, 0.12);
+            color: #818cf8;
+            border-color: rgba(129, 140, 248, 0.3);
+        }
+
+        .tag-amber {
+            background: rgba(245, 158, 11, 0.12);
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .tag-rose {
+            background: rgba(244, 63, 94, 0.12);
+            color: #fb7185;
+            border-color: rgba(251, 113, 133, 0.3);
+        }
+
+        .tag-sky {
+            background: rgba(14, 165, 233, 0.12);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .tag-violet {
+            background: rgba(139, 92, 246, 0.12);
+            color: #a78bfa;
+            border-color: rgba(167, 139, 250, 0.3);
+        }
+
+        .tag-slate {
+            background: rgba(100, 116, 139, 0.12);
+            color: #94a3b8;
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+
+        /* active sidebar item */
+        .tree-item {
+            cursor: pointer;
+            border-radius: 6px;
+            padding: 5px 8px;
+            transition: background 0.12s;
+        }
+
+        .tree-item:hover {
+            background: #1e293b;
+        }
+
+        .tree-item.active {
+            background: #1e293b;
+            border-left: 2px solid #818cf8;
+        }
+
+        /* uml box */
+        .uml-box {
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: #0f172a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .uml-box::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        /* OTel bar colors */
+        .bar-input {
+            background: linear-gradient(90deg, #3b82f6, #6366f1);
+        }
+
+        .bar-cache {
+            background: linear-gradient(90deg, #10b981, #06b6d4);
+        }
+
+        .bar-output {
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+        }
+
+        /* agent fork visual */
+        .fork-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(180deg, #6366f1, transparent);
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-300 h-screen flex flex-col overflow-hidden">
+
+<!-- ── Top Nav ───────────────────────────────────────────── -->
+<header class="flex items-center gap-3 px-4 py-2 bg-slate-900 border-b border-slate-800 flex-shrink-0 z-10">
+    <a href="/" class="text-slate-500 hover:text-slate-300 text-xs transition-colors">← 대시보드</a>
+    <div class="w-px h-4 bg-slate-700"></div>
+    <span class="text-indigo-400 text-xs font-mono font-semibold">Claude Code</span>
+    <span class="text-slate-600 text-xs">/</span>
+    <span class="text-slate-200 text-sm font-semibold">Harness Explorer</span>
+    <div class="flex gap-2 ml-auto">
+        <span class="tag-pill tag-emerald">Live</span>
+        <span class="tag-pill tag-indigo">.claude/</span>
+        <span id="navBreadcrumb" class="tag-pill tag-slate">선택하세요</span>
+    </div>
+</header>
+
+<!-- ── 3-Column Layout ────────────────────────────────────── -->
+<div class="flex flex-1 overflow-hidden">
+
+    <!-- ═══ LEFT SIDEBAR ═══════════════════════════════════════ -->
+    <aside class="w-56 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden flex-shrink-0">
+        <div class="px-3 py-2 border-b border-slate-800">
+            <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">프로젝트 디렉터리</div>
+        </div>
+        <div class="overflow-y-auto flex-1 px-2 py-2 text-xs">
+
+            <!-- .claude/ root -->
+            <div class="flex items-center gap-1.5 px-2 py-1 text-slate-400 font-semibold">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                </svg>
+                <span class="text-indigo-300">.claude/</span>
+            </div>
+
+            <div class="tree-child mt-1 space-y-0.5">
+
+                <!-- CLAUDE.md -->
+                <div class="tree-item flex items-center gap-2" onclick="selectItem('claudemd')" id="item-claudemd">
+                    <svg class="w-3.5 h-3.5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor"
+                         viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="text-amber-300">CLAUDE.md</span>
+                    <span class="ml-auto text-slate-600 text-[10px]">247줄</span>
+                </div>
+
+                <!-- rules/ -->
+                <div>
+                    <div class="tree-item flex items-center gap-2" onclick="toggleFolder('rules')"
+                         id="item-rules-folder">
+                        <svg class="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor"
+                             viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                        </svg>
+                        <span class="text-emerald-300">rules/</span>
+                        <svg id="rules-caret" class="w-3 h-3 ml-auto text-slate-600 transition-transform" fill="none"
+                             stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                    <div id="rules-children" class="tree-child space-y-0.5 mt-0.5 hidden">
+                        <div class="tree-item flex items-center gap-2" onclick="selectItem('rules-java')">
+                            <svg class="w-3 h-3 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+                            </svg>
+                            <span>java-spring-rules.md</span></div>
+                        <div class="tree-item flex items-center gap-2" onclick="selectItem('rules-style')">
+                            <svg class="w-3 h-3 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+                            </svg>
+                            <span>java-code-style.md</span></div>
+                        <div class="tree-item flex items-center gap-2" onclick="selectItem('rules-git')">
+                            <svg class="w-3 h-3 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+                            </svg>
+                            <span>git.md</span></div>
+                        <div class="tree-item flex items-center gap-2" onclick="selectItem('rules-openapi')">
+                            <svg class="w-3 h-3 text-slate-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+                            </svg>
+                            <span>openapi-conventions.md</span></div>
+                    </div>
+                </div>
+
+                <!-- hooks/ -->
+                <div>
+                    <div class="tree-item flex items-center gap-2" onclick="selectItem('hooks')" id="item-hooks">
+                        <svg class="w-3.5 h-3.5 text-rose-400 flex-shrink-0" fill="none" stroke="currentColor"
+                             viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span class="text-rose-300">hooks/</span>
+                    </div>
+                    <div class="tree-child space-y-0.5 mt-0.5">
+                        <div class="tree-item flex items-center gap-2 text-slate-500" onclick="selectItem('hooks')">
+                            <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+                            </svg>
+                            <span>collect_experiment.sh</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- skills/ -->
+                <div>
+                    <div class="tree-item flex items-center gap-2" onclick="selectItem('skills')" id="item-skills">
+                        <svg class="w-3.5 h-3.5 text-sky-400 flex-shrink-0" fill="none" stroke="currentColor"
+                             viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                        <span class="text-sky-300">skills/</span>
+                    </div>
+                    <div class="tree-child space-y-0.5 mt-0.5">
+                        <div class="tree-item flex items-center gap-2 text-slate-500" onclick="selectItem('skills')">
+                            <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+                            </svg>
+                            <span>debug.md</span></div>
+                        <div class="tree-item flex items-center gap-2 text-slate-500" onclick="selectItem('skills')">
+                            <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+                            </svg>
+                            <span>tech-analysis.md</span></div>
+                    </div>
+                </div>
+
+                <!-- agents -->
+                <div class="tree-item flex items-center gap-2" onclick="selectItem('agents')" id="item-agents">
+                    <svg class="w-3.5 h-3.5 text-violet-400 flex-shrink-0" fill="none" stroke="currentColor"
+                         viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <span class="text-violet-300">agent/</span>
+                </div>
+
+                <!-- settings -->
+                <div>
+                    <div class="tree-item flex items-center gap-2" onclick="selectItem('settings')" id="item-settings">
+                        <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor"
+                             viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span>settings.json</span>
+                    </div>
+                    <div class="tree-item flex items-center gap-2 text-slate-600 ml-4 text-[10px]"
+                         onclick="selectItem('settings')">
+                        <span>settings.local.json</span>
+                    </div>
+                </div>
+
+                <!-- OTel -->
+                <div class="tree-item flex items-center gap-2" onclick="selectItem('otel')" id="item-otel">
+                    <svg class="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor"
+                         viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <span class="text-emerald-300">OTel Metrics</span>
+                </div>
+
+            </div>
+
+            <!-- Memory layer hint -->
+            <div class="mt-4 px-2 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div class="text-[10px] text-slate-500 font-semibold mb-1.5">CLAUDE.md 계층</div>
+                <div class="space-y-0.5">
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-600"><span
+                            class="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0"></span>/etc/claude-code/ <span
+                            class="text-slate-700">Policy</span></div>
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-500"><span
+                            class="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"></span>~/.claude/ <span
+                            class="text-slate-600">User</span></div>
+                    <div class="flex items-center gap-1.5 text-[10px] text-indigo-400"><span
+                            class="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0"></span>./CLAUDE.md <span
+                            class="text-slate-500">Project ←</span></div>
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-600"><span
+                            class="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0"></span>sub/CLAUDE.md <span
+                            class="text-slate-700">Dir</span></div>
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-600"><span
+                            class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>CLAUDE.local.md <span
+                            class="text-slate-700">Local</span></div>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- ═══ CENTER MAIN VIEWER ══════════════════════════════════ -->
+    <main class="flex-1 flex flex-col overflow-hidden min-w-0">
+
+        <!-- Tags / Summary Bar -->
+        <div id="tagBar"
+             class="flex items-center gap-2 px-4 py-2.5 bg-slate-900/80 border-b border-slate-800 flex-shrink-0 overflow-x-auto">
+            <span class="text-xs text-slate-600 flex-shrink-0">항목 선택</span>
+            <span id="tagArea" class="flex gap-2 items-center"></span>
+        </div>
+
+        <!-- UML Architecture Panel -->
+        <div id="umlPanel" class="flex-shrink-0 border-b border-slate-800"
+             style="min-height:200px;max-height:320px;overflow-y:auto">
+            <div id="umlContent" class="p-4 h-full flex items-center justify-center">
+                <div class="text-center text-slate-600">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor"
+                         viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                              d="M4 6h16M4 10h16M4 14h10M4 18h7"/>
+                    </svg>
+                    <div class="text-sm">좌측 트리에서 항목을 선택하세요</div>
+                    <div class="text-xs mt-1 text-slate-700">아키텍처 다이어그램이 이 곳에 표시됩니다</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Editor Preview -->
+        <div class="flex-1 overflow-hidden flex flex-col min-h-0">
+            <div class="flex items-center gap-2 px-4 py-1.5 bg-slate-900 border-b border-slate-800 flex-shrink-0">
+                <span id="editorTitle" class="text-xs text-slate-500 font-mono">선택된 파일 없음</span>
+                <div class="ml-auto flex gap-1">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500/60"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500/60"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/60"></span>
+                </div>
+            </div>
+            <div id="editorContent" class="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed bg-slate-950">
+                <span class="text-slate-700 italic">// 파일을 선택하면 코드 미리보기가 표시됩니다</span>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ═══ RIGHT INSPECTOR ══════════════════════════════════════ -->
+    <aside class="w-64 bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden flex-shrink-0">
+        <div class="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+            <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Inspector</div>
+            <span class="tag-pill tag-indigo text-[10px]">실시간</span>
+        </div>
+        <div id="inspectorBody" class="overflow-y-auto flex-1 p-3 space-y-4 text-xs">
+
+            <!-- Token Impact -->
+            <section id="sec-token">
+                <div class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">토큰 영향도</div>
+                <div id="tokenContent" class="space-y-2 text-slate-600 text-[11px]">항목을 선택하세요</div>
+            </section>
+
+            <div class="border-t border-slate-800"></div>
+
+            <!-- Hook Status -->
+            <section id="sec-hook">
+                <div class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">훅 실행 상태</div>
+                <div id="hookContent" class="space-y-1.5">
+                    <div class="flex items-center gap-2 text-[11px] text-slate-600">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>PreToolUse
+                    </div>
+                    <div class="flex items-center gap-2 text-[11px] text-slate-600">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>PostToolUse
+                    </div>
+                    <div class="flex items-center gap-2 text-[11px] text-slate-600">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>Stop
+                    </div>
+                </div>
+            </section>
+
+            <div class="border-t border-slate-800"></div>
+
+            <!-- Governance Tips -->
+            <section id="sec-gov">
+                <div class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">거버넌스 팁</div>
+                <div id="govContent" class="space-y-2 text-[11px] text-slate-600">항목을 선택하면 규칙 충돌 가이드가 표시됩니다</div>
+            </section>
+
+        </div>
+    </aside>
+
+</div>
+
+<script>
+    // ── Data Definitions ─────────────────────────────────────────
+    const ITEMS = {
+        claudemd: {
+            label: 'CLAUDE.md',
+            breadcrumb: 'CLAUDE.md',
+            tags: [
+                {cls: 'tag-amber', t: '상시 주입'},
+                {cls: 'tag-rose', t: '300줄 제한'},
+                {cls: 'tag-indigo', t: '5계층 병합'},
+                {cls: 'tag-slate', t: '컨텍스트 비용'},
+            ],
+            lineCount: 247,
+            editorTitle: 'CLAUDE.md  —  프로젝트 레벨',
+            code: `<span class="tk-cm"># Claude Code — Project Memory</span>
+<span class="tk-cm"># 세션 시작 시 전문 로드 (300줄 미만 권장)</span>
+
+<span class="tk-kw">## 멀티 에이전트 작업 충돌 방지</span>
+
+새 작업 시작 전 반드시 <span class="tk-str">\`.claude/agent/agent_live.md\`</span>를 읽는다.
+- 브랜치가 겹치면 작업 전에 사용자에게 알린다.
+- 접근 파일이 겹치면 해당 항목을 보고하고 지시를 기다린다.
+
+<span class="tk-kw">## REST Docs</span>
+
+- 컨트롤러 엔드포인트 = REST Docs 테스트 필수
+- <span class="tk-str">MockMvcRestDocumentationWrapper.document()</span> 형태로 작성
+- 테스트 없이 컨트롤러 커밋 <span class="tk-key">금지</span>
+
+<span class="tk-cm"># 규칙 모듈 import</span>
+<span class="tk-fn">@include</span> .claude/rules/java-spring-rules.md
+<span class="tk-fn">@include</span> .claude/rules/java-code-style.md
+<span class="tk-fn">@include</span> .claude/rules/git.md
+<span class="tk-fn">@include</span> .claude/rules/openapi-conventions.md`,
+            umlType: 'claudemd',
+            token: {
+                lines: 247, limit: 300,
+                cost: 0.18,
+                cacheRate: 72,
+                note: '세션마다 전문 로드. 줄 수 증가 시 비용 선형 증가.'
+            },
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: [
+                '⚠️ 300줄 초과 시 모델 주의력 분산 → rules/*.md로 분리 권장',
+                '계층 간 모순 → 엔진이 임의 선택할 수 있음',
+                'CLAUDE.local.md는 gitignore 처리 필수',
+            ]
+        },
+
+        hooks: {
+            label: 'hooks/',
+            breadcrumb: 'hooks/collect_experiment.sh',
+            tags: [
+                {cls: 'tag-rose', t: '결정론적 실행'},
+                {cls: 'tag-amber', t: '이벤트 차단'},
+                {cls: 'tag-emerald', t: 'Stop Hook'},
+                {cls: 'tag-indigo', t: '컨텍스트 0소모'},
+            ],
+            editorTitle: '.claude/hooks/collect_experiment.sh',
+            code: `<span class="tk-cm">#!/usr/bin/env bash</span>
+<span class="tk-cm"># Stop Hook — 세션 종료 시 자동 실행</span>
+<span class="tk-cm"># settings.json "Stop" 이벤트에 등록</span>
+
+<span class="tk-kw">set</span> -euo pipefail
+
+<span class="tk-cm"># runner_config.json 에서 빌드 명령 로드</span>
+<span class="tk-key">COMPILE_CMD</span>=<span class="tk-str">$(jq -r '.compile // "__NULL__"' runner_config.json)</span>
+<span class="tk-key">TEST_CMD</span>=<span class="tk-str">$(jq -r '.test   // "__NULL__"' runner_config.json)</span>
+<span class="tk-key">MIN_TURNS</span>=<span class="tk-str">$(jq -r '.min_turns // 5' runner_config.json)</span>
+
+<span class="tk-cm"># 최소 턴 수 미달 시 skip</span>
+<span class="tk-kw">if</span> [[ <span class="tk-str">"$TURN_COUNT"</span> -lt <span class="tk-str">"$MIN_TURNS"</span> ]]; <span class="tk-kw">then</span>
+  <span class="tk-fn">exit</span> <span class="tk-num">0</span>
+<span class="tk-kw">fi</span>
+
+<span class="tk-cm"># 실험 데이터 수집 및 스냅샷 저장</span>
+<span class="tk-fn">python3</span> .experiment/collectors/config_snapshot.py
+<span class="tk-fn">python3</span> .experiment/collectors/claude_session_parser.py \\
+  --session-id <span class="tk-str">"$CLAUDE_SESSION_ID"</span> \\
+  --transcript-path <span class="tk-str">"$TRANSCRIPT_PATH"</span>`,
+            umlType: 'hooks',
+            token: {
+                lines: null, limit: null,
+                cost: 0,
+                cacheRate: null,
+                note: '훅은 에이전트 루프 외부 실행 → 토큰 소비 없음.'
+            },
+            hooks: {pre: 'watch', post: 'watch', stop: 'active'},
+            gov: [
+                'PreToolUse에서 {"decision":"block"} 반환 시 도구 실행 완전 차단',
+                'PostToolUse에서 수집한 에러를 다음 턴 컨텍스트로 자동 주입 가능',
+                'timeout 설정 필수 (기본값 60s) — 긴 테스트는 120s+',
+                'stdout은 에이전트 컨텍스트로 전달됨 — 불필요한 출력 억제 권장',
+            ]
+        },
+
+        skills: {
+            label: 'skills/',
+            breadcrumb: 'skills/debug.md',
+            tags: [
+                {cls: 'tag-sky', t: 'Lazy Load 3단계'},
+                {cls: 'tag-indigo', t: '/slash 호출'},
+                {cls: 'tag-emerald', t: '재사용 템플릿'},
+                {cls: 'tag-slate', t: '선택적 로드'},
+            ],
+            editorTitle: '.claude/skills/debug.md',
+            code: `<span class="tk-cm"># 디버깅 프로토콜 (재시도 루프 차단)</span>
+<span class="tk-cm">## 호출: /debug</span>
+
+<span class="tk-kw">원칙:</span>
+<span class="tk-num">1.</span> [재관찰 강제] 매 시도 전, 캐싱된 환경값을 신뢰하지 마라.
+   실제 상태를 다시 읽고, 이전 값은 "과거 스냅샷"으로 명시.
+<span class="tk-num">2.</span> [사실/가정/실패 분리] 매 시도마다 아래 3개를 분리해 명시:
+    - 관찰된 사실 (도구·명령 실행 결과):
+    - 검증 안 된 가정:
+    - 이미 시도했고 실패한 것 (반복 금지):
+<span class="tk-num">3.</span> [단일 근본원인 + 반증조건]
+<span class="tk-num">4.</span> [실패 임계값] 같은 방향 시도가 <span class="tk-str">2회 실패</span> → 진단 전환
+<span class="tk-num">7.</span> [하드 예산] 총 시도 <span class="tk-num">3회</span> 또는 토큰 상한 도달 시 즉시 중단
+
+<span class="tk-kw">출력 형식:</span>
+- 현재 상태 (재관찰 + diff):
+- 사실 / 가정 / 실패목록:
+- 근본원인 가설 (1문장) + 반증조건:`,
+            umlType: 'skills',
+            token: {
+                lines: null, limit: null,
+                cost: null,
+                cacheRate: null,
+                note: '3단계 Lazy Load: Discovery → Instruction → Resources'
+            },
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: [
+                'Level 1 Discovery만 로드하면 최소 토큰으로 스킬 존재 확인 가능',
+                '~/.claude/plugins/ 하위 전역 스킬은 모든 프로젝트에 공유',
+                '스킬 내 체크리스트 → 에이전트가 TaskCreate로 자동 추적',
+            ]
+        },
+
+        agents: {
+            label: 'agent/',
+            breadcrumb: 'agent/agent_live.md',
+            tags: [
+                {cls: 'tag-violet', t: 'Forked Context'},
+                {cls: 'tag-indigo', t: '병렬 실행'},
+                {cls: 'tag-amber', t: '컨텍스트 격리'},
+                {cls: 'tag-rose', t: 'worktree 지원'},
+            ],
+            editorTitle: '.claude/agent/agent_live.md — 충돌 방지 레지스트리',
+            code: `<span class="tk-cm"># Agent Live — 작업 충돌 방지 레지스트리</span>
+
+<span class="tk-kw">## 현재 활성 작업</span>
+
+<span class="tk-kw">### Claude-현재세션 (experiment-tool)</span>
+- 브랜치: <span class="tk-str">\`develop\`</span>
+- 상태: <span class="tk-key">완료</span>
+- 접근 파일:
+  - <span class="tk-str">.experiment/server.py</span>
+  - <span class="tk-str">.experiment/collectors/store.py</span>
+- 작업 요약: .experiment 범용화
+
+<span class="tk-cm">## 서브에이전트 타입</span>
+
+<span class="tk-fn">fork</span>   → 전체 컨텍스트 상속 (캐시 공유)
+<span class="tk-fn">fresh</span>  → 독립 컨텍스트 (격리)
+<span class="tk-fn">worktree</span> → git worktree 파일 격리`,
+            umlType: 'agents',
+            token: {
+                lines: null, limit: null,
+                cost: null,
+                cacheRate: null,
+                note: 'fork는 부모 캐시 공유 → 추가 비용 최소화. fresh는 완전 격리 → 독립 비용 발생.'
+            },
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: [
+                'agent_live.md 필수 점검 — 브랜치/파일 충돌 방지',
+                'fork: 짧은 리서치에 최적 (캐시 공유로 저비용)',
+                'fresh: 긴 구현 작업, 컨텍스트 오염 없음',
+                'worktree: 메인 트리 무손상 실험',
+            ]
+        },
+
+        settings: {
+            label: 'settings.json',
+            breadcrumb: 'settings.json',
+            tags: [
+                {cls: 'tag-slate', t: '권한 제어'},
+                {cls: 'tag-indigo', t: 'MCP 서버'},
+                {cls: 'tag-emerald', t: '훅 등록'},
+                {cls: 'tag-amber', t: 'env 주입'},
+            ],
+            editorTitle: '.claude/settings.json',
+            code: `{
+  <span class="tk-key">"permissions"</span>: {
+    <span class="tk-key">"allow"</span>: [
+      <span class="tk-str">"Bash(git *)"</span>,
+      <span class="tk-str">"Bash(./gradlew *)"</span>,
+      <span class="tk-str">"Read"</span>, <span class="tk-str">"Edit"</span>, <span class="tk-str">"Write"</span>
+    ],
+    <span class="tk-key">"deny"</span>: [
+      <span class="tk-str">"Bash(rm -rf *)"</span>,
+      <span class="tk-str">"Bash(git push --force *)"</span>
+    ]
+  },
+  <span class="tk-key">"hooks"</span>: {
+    <span class="tk-key">"Stop"</span>: [{
+      <span class="tk-key">"hooks"</span>: [{
+        <span class="tk-key">"type"</span>: <span class="tk-str">"command"</span>,
+        <span class="tk-key">"command"</span>: <span class="tk-str">"$CLAUDE_PROJECT_DIR/.claude/hooks/collect_experiment.sh"</span>,
+        <span class="tk-key">"timeout"</span>: <span class="tk-num">120</span>
+      }]
+    }]
+  },
+  <span class="tk-key">"mcpServers"</span>: {
+    <span class="tk-key">"context7"</span>: { <span class="tk-key">"command"</span>: <span class="tk-str">"npx @context7/mcp"</span> }
+  },
+  <span class="tk-key">"env"</span>: {
+    <span class="tk-key">"CLAUDE_CODE_ENABLE_TELEMETRY"</span>: <span class="tk-str">"1"</span>
+  }
+}`,
+            umlType: 'settings',
+            token: {
+                lines: null, limit: null, cost: null, cacheRate: null,
+                note: 'settings.local.json은 gitignore — 개인 오버라이드용'
+            },
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: [
+                'deny 규칙은 allow보다 우선 — 실수 방지 패턴 필수',
+                'settings.local.json으로 개인 토큰/키 주입 (git 제외)',
+                'MCP 서버 추가 시 command 경로 절대경로 권장',
+            ]
+        },
+
+        otel: {
+            label: 'OTel Metrics',
+            breadcrumb: 'OTel Observability',
+            tags: [
+                {cls: 'tag-emerald', t: 'claude_code.*'},
+                {cls: 'tag-sky', t: 'OTLP/Prometheus'},
+                {cls: 'tag-amber', t: '캐시 절감 90%'},
+                {cls: 'tag-indigo', t: '비용 추적'},
+            ],
+            editorTitle: 'OTel 환경변수 설정',
+            code: `<span class="tk-cm"># OpenTelemetry 활성화</span>
+<span class="tk-key">CLAUDE_CODE_ENABLE_TELEMETRY</span>=<span class="tk-num">1</span>
+<span class="tk-key">OTEL_METRICS_EXPORTER</span>=<span class="tk-str">otlp</span>       <span class="tk-cm"># prometheus | console</span>
+<span class="tk-key">OTEL_LOGS_EXPORTER</span>=<span class="tk-str">otlp</span>
+<span class="tk-key">OTEL_EXPORTER_OTLP_ENDPOINT</span>=<span class="tk-str">http://collector:4317</span>
+<span class="tk-key">OTEL_EXPORTER_OTLP_HEADERS</span>=<span class="tk-str">"Authorization=Bearer &lt;token&gt;"</span>
+
+<span class="tk-cm"># 핵심 메트릭</span>
+<span class="tk-cm"># claude_code.token.usage</span>
+<span class="tk-cm">#   type: input | output | cacheRead | cacheCreation</span>
+<span class="tk-cm"># claude_code.cost.usage</span>
+<span class="tk-cm">#   labels: model, user.email, session.id</span>
+<span class="tk-cm"># claude_code.api_request</span>
+<span class="tk-cm">#   attrs: duration_ms, input_tokens, cache_tokens, cost_usd</span>
+<span class="tk-cm"># claude_code.lines_of_code</span>
+<span class="tk-cm">#   type: added | removed</span>`,
+            umlType: 'otel',
+            token: {
+                lines: null, limit: null, cost: null, cacheRate: 80,
+                note: 'cacheRead = input 대비 90% 저렴. cacheRead 비율 80%+ 유지 목표.'
+            },
+            hooks: {pre: 'idle', post: 'idle', stop: 'active'},
+            gov: [
+                'cacheRead 비율 < 60% → 프롬프트 구조 재검토 필요',
+                '비용 급증 알림: cost_usd 임계값 설정 권장',
+                'session.id 레이블로 세션별 비용 분리 가능',
+            ]
+        },
+
+        'rules-java': {
+            label: 'java-spring-rules.md',
+            breadcrumb: 'rules/java-spring-rules.md',
+            tags: [{cls: 'tag-emerald', t: '상시 주입'}, {cls: 'tag-indigo', t: '도메인 규칙'}, {cls: 'tag-amber', t: '검증 전략'}],
+            editorTitle: '.claude/rules/java-spring-rules.md',
+            code: `<span class="tk-cm"># 백엔드 규칙</span>
+<span class="tk-kw">## 핵심 제약</span>
+
+- <span class="tk-key">기술 변경금지</span> / 버전 다운그레이드 금지
+- 매직 넘버·문자열은 <span class="tk-str">상수 또는 Enum</span>으로 관리
+- API Request에서 <span class="tk-fn">@Valid</span>로 1차 유효성 검사
+- 비즈니스 규칙 검증은 <span class="tk-fn">Service/Domain</span>에서 수행
+- <span class="tk-fn">@Transactional(readOnly=true)</span> 메소드 단위 명시
+
+<span class="tk-kw">## 테스트 전략</span>
+
+- GIVEN-WHEN-THEN 패턴 필수
+- 코드·라인 커버리지 최소 <span class="tk-num">95%</span> 이상
+- Rest API 테스트 <span class="tk-num">100%</span> 문서화 필수
+- <span class="tk-key">JSON 문자열 리터럴 사용 금지</span> (ObjectMapper 직렬화)`,
+            umlType: 'rules',
+            token: {lines: 89, limit: null, cost: 0.06, cacheRate: 72, note: '세션마다 CLAUDE.md와 함께 로드됩니다.'},
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: ['rules/*.md는 CLAUDE.md에서 import — 단독 300줄 계산에 포함', '구체적 행동 단위로 작성 — 모호한 지침은 효과 없음']
+        },
+        'rules-style': {
+            label: 'java-code-style.md',
+            breadcrumb: 'rules/java-code-style.md',
+            tags: [{cls: 'tag-emerald', t: '상시 주입'}, {cls: 'tag-sky', t: 'DDD 계층'}, {
+                cls: 'tag-slate',
+                t: 'Google Java Style'
+            }],
+            editorTitle: '.claude/rules/java-code-style.md',
+            code: `<span class="tk-cm"># java-code-style.md</span>
+<span class="tk-kw">## 코드 컨벤션</span>
+
+- DDD 기반 계층 분리: <span class="tk-str">Presentation / Application / Domain / Infra</span>
+- Google Java Style — 들여쓰기 <span class="tk-num">4</span>칸
+- 축약 금지 — 의도를 명확히 드러내는 풀네임
+
+<span class="tk-kw">## 코드 규칙</span>
+
+- 메소드 내용 <span class="tk-num">18</span>줄 이내
+- else 예약어 금지
+- setter/property 금지
+- <span class="tk-key">null</span> 을 비즈니스 로직에 포함 엄격히 금지
+- 의존성 주입: <span class="tk-fn">@RequiredArgsConstructor</span> 우선
+- 클래스 멤버 순서: static final → 인스턴스 필드 → 생성자 → 메소드`,
+            umlType: 'rules',
+            token: {lines: 72, limit: null, cost: 0.05, cacheRate: 72, note: '세션마다 CLAUDE.md와 함께 로드됩니다.'},
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: ['rules/*.md는 CLAUDE.md에서 import — 단독 300줄 계산에 포함']
+        },
+        'rules-git': {
+            label: 'git.md',
+            breadcrumb: 'rules/git.md',
+            tags: [{cls: 'tag-emerald', t: '상시 주입'}, {cls: 'tag-amber', t: 'git-flow'}, {cls: 'tag-rose', t: '커밋 제한'}],
+            editorTitle: '.claude/rules/git.md',
+            code: `<span class="tk-cm"># Git 규칙</span>
+
+- 커밋 제목 영어 / 본문 한국어
+- <span class="tk-key">main, dev, develop</span> 브랜치 직접 커밋 금지
+- PR 생성 금지 / 브랜치 직접 push 금지
+- Co-Authored-By에 Claude 표시 금지
+- 브랜치 명명: <span class="tk-str">feat/ticket-name</span>
+
+<span class="tk-kw">## 커밋 유형</span>
+
+<span class="tk-fn">feat</span>     새 기능
+<span class="tk-fn">fix</span>      버그 수정
+<span class="tk-fn">refactor</span> 리팩토링 (동작 변화 없음)
+<span class="tk-fn">test</span>     테스트 추가
+<span class="tk-fn">docs</span>     문서 수정`,
+            umlType: 'rules',
+            token: {lines: 55, limit: null, cost: 0.04, cacheRate: 72, note: '세션마다 CLAUDE.md와 함께 로드됩니다.'},
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: ['develop 브랜치 커밋 방지 규칙 — 에이전트가 혼동할 수 있는 분기 기준 명시 필수']
+        },
+        'rules-openapi': {
+            label: 'openapi-conventions.md',
+            breadcrumb: 'rules/openapi-conventions.md',
+            tags: [{cls: 'tag-emerald', t: '상시 주입'}, {cls: 'tag-sky', t: 'REST Docs'}, {
+                cls: 'tag-indigo',
+                t: 'OpenAPI'
+            }],
+            editorTitle: '.claude/rules/openapi-conventions.md',
+            code: `<span class="tk-cm"># OpenAPI / ReDoc 일관성 규칙</span>
+
+<span class="tk-kw">## 경로 파라미터</span>
+
+- 테스트 URL에 리터럴 ID 금지:
+  <span class="tk-str">"/api/payments/methods/10"</span> <span class="tk-key">← 금지</span>
+- <span class="tk-fn">RestDocumentationRequestBuilders</span> + <span class="tk-fn">pathParameters()</span> 사용
+
+<span class="tk-kw">## HTTP 상태 코드</span>
+
+- 신규 POST → <span class="tk-num">201</span> 반환
+- 204 = 데이터 없는 성공만
+
+<span class="tk-kw">## 내부 API prefix</span>
+
+- 장인·고객 내부 호출: <span class="tk-str">/internal/**</span>
+- SecurityConfig <span class="tk-fn">hasRole("AGENT")</span> 보호`,
+            umlType: 'rules',
+            token: {lines: 98, limit: null, cost: 0.07, cacheRate: 72, note: '세션마다 CLAUDE.md와 함께 로드됩니다.'},
+            hooks: {pre: 'idle', post: 'idle', stop: 'idle'},
+            gov: ['roleByOperationId 누락 시 기본값 USER fallback — 보안 위험', 'Content-Type application/json;charset=UTF-8 금지']
+        },
+    };
+
+    // ── State ─────────────────────────────────────────────────────
+    let currentItem = null;
+    let hookAnimTimer = null;
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function qs(id) {
+        return document.getElementById(id);
+    }
+
+    function setTags(tags) {
+        const area = qs('tagArea');
+        area.innerHTML = tags.map(t => `<span class="tag-pill ${t.cls}">${t.t}</span>`).join('');
+    }
+
+    function setCode(title, html) {
+        qs('editorTitle').textContent = title;
+        qs('editorContent').innerHTML = html;
+    }
+
+    function setToken(info) {
+        const el = qs('tokenContent');
+        if (!info) {
+            el.innerHTML = '<span class="text-slate-600">해당 없음</span>';
+            return;
+        }
+        let html = '';
+
+        if (info.lines !== null) {
+            const pct = Math.min(100, Math.round(info.lines / (info.limit || 300) * 100));
+            const color = pct > 90 ? 'bg-rose-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500';
+            html += `<div>
+      <div class="flex justify-between mb-1 text-slate-500">
+        <span>줄 수</span>
+        <span class="${info.lines > 280 ? 'text-rose-400 font-semibold' : 'text-slate-400'}">${info.lines}${info.limit ? '/' + info.limit : ''}</span>
+      </div>
+      <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div class="h-full ${color} prog-fill rounded-full" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+            if (info.lines > 280) {
+                html += `<div class="flex items-start gap-1.5 p-2 rounded-lg bg-rose-900/20 border border-rose-800/40 text-rose-400 text-[10px]">
+        <span class="flex-shrink-0 mt-0.5">⚠️</span>
+        <span>300줄 초과 임박 — 규칙을 rules/*.md로 분리하고 import 방식을 사용하세요. 토큰 비용 주의.</span>
+      </div>`;
+            }
+        }
+
+        if (info.cost !== null && info.cost !== undefined) {
+            html += `<div class="flex justify-between text-slate-500">
+      <span>추정 비용/세션</span>
+      <span class="text-amber-400 font-mono">$${info.cost.toFixed(3)}</span>
+    </div>`;
+        }
+
+        if (info.cost === 0) {
+            html = `<div class="flex items-center gap-1.5 p-2 rounded-lg bg-emerald-900/20 border border-emerald-800/40 text-emerald-400 text-[10px]">
+      <span>✓</span><span>훅은 에이전트 루프 외부 실행 — 토큰 비용 없음</span>
+    </div>` + html;
+        }
+
+        if (info.cacheRate !== null && info.cacheRate !== undefined) {
+            const cp = info.cacheRate;
+            html += `<div>
+      <div class="flex justify-between mb-1 text-slate-500">
+        <span>캐시 히트율</span>
+        <span class="text-sky-400">${cp}%</span>
+      </div>
+      <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div class="h-full bg-gradient-to-r from-sky-500 to-emerald-500 prog-fill rounded-full" style="width:${cp}%"></div>
+      </div>
+    </div>`;
+        }
+
+        if (info.note) {
+            html += `<div class="text-slate-600 text-[10px] pt-1">${info.note}</div>`;
+        }
+
+        el.innerHTML = html || '<span class="text-slate-600">해당 없음</span>';
+    }
+
+    function setHookStatus(hooks) {
+        const states = {
+            idle: {dot: 'bg-slate-700', label: 'text-slate-600', badge: ''},
+            watch: {
+                dot: 'bg-amber-400 animate-pulse',
+                label: 'text-amber-300',
+                badge: '<span class="tag-pill tag-amber text-[9px] ml-auto">대기</span>'
+            },
+            active: {
+                dot: 'bg-emerald-400 animate-pulse',
+                label: 'text-emerald-300',
+                badge: '<span class="tag-pill tag-emerald text-[9px] ml-auto">실행됨</span>'
+            },
+            block: {
+                dot: 'bg-rose-400 animate-pulse',
+                label: 'text-rose-300',
+                badge: '<span class="tag-pill tag-rose text-[9px] ml-auto">차단</span>'
+            },
+        };
+        const events = [
+            {key: 'pre', name: 'PreToolUse'},
+            {key: 'post', name: 'PostToolUse'},
+            {key: 'stop', name: 'Stop'},
+        ];
+        qs('hookContent').innerHTML = events.map(e => {
+            const s = states[hooks[e.key]] || states.idle;
+            return `<div class="flex items-center gap-2 text-[11px] ${s.label}">
+      <span class="w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0"></span>
+      <span>${e.name}</span>${s.badge}
+    </div>`;
+        }).join('');
+    }
+
+    function setGov(tips) {
+        qs('govContent').innerHTML = tips.map(t =>
+            `<div class="flex items-start gap-1.5 text-[11px] text-slate-500 leading-relaxed">
+      <span class="flex-shrink-0 mt-0.5 text-indigo-500">›</span><span>${t}</span>
+    </div>`
+        ).join('');
+    }
+
+    function setNavBreadcrumb(label) {
+        qs('navBreadcrumb').textContent = label;
+    }
+
+    function clearActiveItems() {
+        document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+    }
+
+    // ── UML Renderers ──────────────────────────────────────────────
+
+    function renderUML_ClaudeMD(lineCount) {
+        const warn = lineCount > 280;
+        return `<div class="p-4">
+    <div class="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">CLAUDE.md 5계층 병합 파이프라인</div>
+    <div class="flex items-stretch gap-2 overflow-x-auto pb-2">
+      ${[
+            {
+                label: '/etc/claude-code/',
+                sub: 'Managed Policy',
+                color: 'border-rose-700 bg-rose-900/20',
+                tc: 'text-rose-400'
+            },
+            {label: '~/.claude/', sub: 'User Memory', color: 'border-amber-700 bg-amber-900/20', tc: 'text-amber-400'},
+            {
+                label: './CLAUDE.md',
+                sub: 'Project Memory',
+                color: 'border-indigo-600 bg-indigo-900/30',
+                tc: 'text-indigo-300',
+                active: true
+            },
+            {label: 'sub/CLAUDE.md', sub: 'Directory', color: 'border-sky-700 bg-sky-900/20', tc: 'text-sky-400'},
+            {
+                label: 'CLAUDE.local.md',
+                sub: 'Local Override',
+                color: 'border-emerald-700 bg-emerald-900/20',
+                tc: 'text-emerald-400'
+            },
+        ].map((n, i) => `
+        <div class="flex items-center ${i > 0 ? 'gap-2' : ''}">
+          ${i > 0 ? '<span class="text-slate-600 text-lg flex-shrink-0">→</span>' : ''}
+          <div class="flow-node uml-box border ${n.color} rounded-lg px-3 py-2 flex-shrink-0 min-w-[100px] text-center ${n.active ? 'ring-1 ring-indigo-500/40' : ''}">
+            <div class="text-[10px] font-mono ${n.tc} font-semibold">${n.label}</div>
+            <div class="text-[9px] text-slate-600 mt-0.5">${n.sub}</div>
+          </div>
+        </div>`).join('')}
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <span class="text-slate-600 text-lg">→</span>
+        <div class="uml-box border border-violet-600 bg-violet-900/20 rounded-lg px-3 py-2 min-w-[100px] text-center ring-1 ring-violet-500/30">
+          <div class="text-[10px] font-mono text-violet-300 font-semibold">단일 컨텍스트</div>
+          <div class="text-[9px] text-slate-600 mt-0.5">병합 완료</div>
+        </div>
+      </div>
+    </div>
+    ${warn ? `<div class="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-rose-900/25 border border-rose-700/40 text-rose-300 text-xs">
+      <span class="text-base flex-shrink-0">⚠️</span>
+      <div>
+        <div class="font-semibold">줄 수 경고: ${lineCount}줄</div>
+        <div class="text-rose-400/70 text-[11px] mt-0.5">300줄 초과 시 모델 주의력 분산, 토큰 비용 증가. rules/*.md로 분리하세요.</div>
+      </div>
+    </div>` : `<div class="mt-3 flex items-center gap-2 p-2 rounded-lg bg-emerald-900/20 border border-emerald-800/30 text-emerald-400 text-[11px]">
+      <span>✓</span><span>${lineCount}줄 — 권장 범위(60–300) 내</span>
+    </div>`}
+  </div>`;
+    }
+
+    function renderUML_Hooks() {
+        let html = `<div class="p-4">
+    <div class="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">훅 라이프사이클 — PreToolUse 차단 시퀀스</div>
+    <div class="space-y-2" id="hookSeq">`;
+
+        const steps = [
+            {
+                id: 'hs0',
+                label: '에이전트',
+                sub: '도구 실행 요청',
+                color: 'bg-indigo-900/30 border-indigo-700',
+                tc: 'text-indigo-300'
+            },
+            {
+                id: 'hs1',
+                label: 'PreToolUse',
+                sub: '훅 스크립트 실행',
+                color: 'bg-amber-900/30 border-amber-700',
+                tc: 'text-amber-300'
+            },
+            {
+                id: 'hs2',
+                label: '{"decision":"block"}',
+                sub: '차단 신호 반환',
+                color: 'bg-rose-900/40 border-rose-600',
+                tc: 'text-rose-300',
+                isBlock: true
+            },
+            {
+                id: 'hs3',
+                label: '도구 실행 취소',
+                sub: '컨텍스트에 이유 주입',
+                color: 'bg-rose-900/20 border-rose-800/50',
+                tc: 'text-rose-400/70'
+            },
+            {
+                id: 'hs4',
+                label: 'PostToolUse',
+                sub: '에러 수집 → 다음 턴 주입',
+                color: 'bg-sky-900/30 border-sky-700',
+                tc: 'text-sky-300'
+            },
+            {
+                id: 'hs5',
+                label: 'Stop',
+                sub: '종합 검증 · 스냅샷 저장',
+                color: 'bg-emerald-900/30 border-emerald-700',
+                tc: 'text-emerald-300'
+            },
+        ];
+
+        steps.forEach((s, i) => {
+            html += `<div class="flex items-center gap-2">
+      <div class="w-5 text-center text-[10px] text-slate-700 font-mono flex-shrink-0">${i + 1}</div>
+      <div id="${s.id}" class="flow-node flex-1 border ${s.color} rounded-md px-3 py-1.5 flex items-center justify-between transition-all duration-300">
+        <span class="text-[11px] font-mono ${s.tc} font-semibold">${s.label}</span>
+        <span class="text-[10px] text-slate-600">${s.sub}</span>
+      </div>
+      ${i < steps.length - 1 ? '<div class="w-5 text-center text-slate-700 flex-shrink-0">↓</div>' : ''}
+    </div>`;
+            if (s.isBlock) {
+                html += `<div class="flex items-center gap-2 ml-7">
+        <div class="flex-1 border border-dashed border-rose-800/40 rounded-md px-3 py-1 text-center text-[10px] text-rose-500/50">
+          ✗ 도구 실행 건너뜀 (차단됨)
+        </div>
+      </div>`;
+            }
+        });
+
+        html += `</div>
+    <button onclick="runHookAnimation()" class="mt-3 px-3 py-1.5 rounded-md bg-indigo-600/20 border border-indigo-600/40 text-indigo-300 text-xs hover:bg-indigo-600/30 transition-colors">
+      ▶ 차단 시퀀스 재생
+    </button>
+  </div>`;
+        return html;
+    }
+
+    function renderUML_Skills() {
+        return `<div class="p-4">
+    <div class="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">Skills — Lazy Load 3단계 토큰 구조</div>
+    <div class="space-y-2" id="skillAccordions">
+
+      <!-- Level 1 -->
+        <div class="uml-box border border-sky-700/50 rounded-lg overflow-hidden">
+        <div class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-800/50 transition-colors" onclick="toggleAcc('acc1')">
+        <span class="tag-pill tag-sky text-[10px]">Level 1</span>
+        <span class="text-[11px] font-semibold text-sky-300">Discovery</span>
+        <span class="text-[10px] text-slate-600 ml-2">스킬 존재 확인 (최소 토큰)</span>
+        <svg id="acc1-caret" class="w-3.5 h-3.5 ml-auto text-slate-600 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <div id="acc1" class="accordion-content open border-t border-slate-800/50">
+        <div class="px-4 py-2.5 space-y-1.5 text-[11px] text-slate-500">
+        <div>• 스킬 파일 존재 여부 확인</div>
+        <div>• 스킬명 목록 로드 (인덱스만)</div>
+        <div class="flex items-center gap-2"><span class="tag-pill tag-sky text-[10px]">~50 tokens</span> <span class="text-slate-600">최소 비용</span></div>
+        </div>
+        </div>
+        </div>
+
+            <!-- Level 2 -->
+        <div class="uml-box border border-indigo-700/50 rounded-lg overflow-hidden">
+        <div class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-800/50 transition-colors" onclick="toggleAcc('acc2')">
+        <span class="tag-pill tag-indigo text-[10px]">Level 2</span>
+        <span class="text-[11px] font-semibold text-indigo-300">Instruction</span>
+        <span class="text-[10px] text-slate-600 ml-2">실행 지침 로드</span>
+        <svg id="acc2-caret" class="w-3.5 h-3.5 ml-auto text-slate-600 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <div id="acc2" class="accordion-content border-t border-slate-800/50">
+        <div class="px-4 py-2.5 space-y-1.5 text-[11px] text-slate-500">
+        <div>• 스킬 실행 단계 및 출력 형식 로드</div>
+        <div>• 체크리스트 → TaskCreate 자동 생성</div>
+        <div class="flex items-center gap-2"><span class="tag-pill tag-indigo text-[10px]">~200–500 tokens</span></div>
+        </div>
+        </div>
+        </div>
+
+            <!-- Level 3 -->
+        <div class="uml-box border border-violet-700/50 rounded-lg overflow-hidden">
+        <div class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-800/50 transition-colors" onclick="toggleAcc('acc3')">
+        <span class="tag-pill tag-violet text-[10px]">Level 3</span>
+        <span class="text-[11px] font-semibold text-violet-300">Resources</span>
+        <span class="text-[10px] text-slate-600 ml-2">참조 리소스 전체 로드</span>
+        <svg id="acc3-caret" class="w-3.5 h-3.5 ml-auto text-slate-600 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <div id="acc3" class="accordion-content border-t border-slate-800/50">
+        <div class="px-4 py-2.5 space-y-1.5 text-[11px] text-slate-500">
+        <div>• 외부 문서, 코드 예시, 컨텍스트 전체</div>
+        <div>• 필요 시에만 로드 — Lazy 기본 원칙</div>
+        <div class="flex items-center gap-2"><span class="tag-pill tag-violet text-[10px]">~1k–5k tokens</span> <span class="text-rose-400/70 text-[10px]">필요시만</span></div>
+        </div>
+        </div>
+        </div>
+
+        </div>
+        <div class="mt-3 flex items-center gap-2 text-[10px] text-slate-600">
+        <svg class="w-3.5 h-3.5 text-sky-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>~/.claude/plugins/ 하위 전역 스킬은 모든 프로젝트에 공유됩니다</span>
+        </div>
+        </div>`
+    ;
+    }
+
+    function renderUML_Agents() {
+      return
+        `<div class="p-4">
+        <div class="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">서브에이전트 — Forked Context Window 파이프라인</div>
+
+        <div class="flex gap-3 overflow-x-auto pb-2">
+
+            <!-- Main Session -->
+        <div class="flex-shrink-0 w-36">
+        <div class="uml-box border border-indigo-600/60 rounded-lg p-3 text-center bg-indigo-900/20">
+        <div class="text-[11px] font-semibold text-indigo-300 mb-1">Main Session</div>
+        <div class="text-[10px] text-slate-600">컨텍스트 윈도우</div>
+        <div class="mt-2 flex justify-center gap-1">
+        <div class="w-2 h-2 rounded-sm bg-indigo-500/50"></div>
+        <div class="w-2 h-2 rounded-sm bg-indigo-500/50"></div>
+        <div class="w-2 h-2 rounded-sm bg-indigo-500/50"></div>
+        </div>
+        </div>
+        </div>
+
+            <!-- Fork lines -->
+        <div class="flex flex-col justify-around gap-2 flex-shrink-0 pt-2">
+        ${['fork','fresh','worktree'].map(t => `
+    <div class="flex items-center gap-1 text-[10px]">
+              <div class="w-10 h-px bg-gradient-to-r from-indigo-600 to-$
+        {
+            t === 'fork' ? 'violet' : t === 'fresh' ? 'sky' : 'emerald'
+        }
+    -600"></div>
+              <span class="text-slate-700">→</span>
+            </div>
+        `).join('')}
+        </div>
+
+            <!-- Subagent types -->
+        <div class="flex flex-col gap-2 flex-shrink-0">
+        <div class="uml-box border border-violet-600/50 rounded-lg px-3 py-2 bg-violet-900/20">
+        <div class="flex items-center gap-2">
+        <span class="tag-pill tag-violet text-[10px]">fork</span>
+        <span class="text-[10px] text-slate-500">컨텍스트 상속 + 캐시 공유</span>
+        </div>
+        <div class="text-[10px] text-slate-700 mt-1">추가 비용 최소 · 짧은 리서치</div>
+        </div>
+        <div class="uml-box border border-sky-600/50 rounded-lg px-3 py-2 bg-sky-900/20">
+        <div class="flex items-center gap-2">
+        <span class="tag-pill tag-sky text-[10px]">fresh</span>
+        <span class="text-[10px] text-slate-500">독립 컨텍스트 (격리)</span>
+        </div>
+        <div class="text-[10px] text-slate-700 mt-1">긴 구현 · 컨텍스트 오염 없음</div>
+        </div>
+        <div class="uml-box border border-emerald-600/50 rounded-lg px-3 py-2 bg-emerald-900/20">
+        <div class="flex items-center gap-2">
+        <span class="tag-pill tag-emerald text-[10px]">worktree</span>
+        <span class="text-[10px] text-slate-500">git worktree 파일 격리</span>
+        </div>
+        <div class="text-[10px] text-slate-700 mt-1">메인 트리 무손상 실험</div>
+        </div>
+        </div>
+
+            <!-- Result merge -->
+        <div class="flex items-center flex-shrink-0">
+        <div class="text-slate-600 text-lg px-2">→</div>
+        <div class="uml-box border border-slate-600 rounded-lg p-3 text-center">
+        <div class="text-[11px] font-semibold text-slate-400 mb-1">결과 수신</div>
+        <div class="text-[10px] text-slate-600">Main 컨텍스트</div>
+        <div class="text-[10px] text-slate-700 mt-1">단일 메시지 반환</div>
+        </div>
+        </div>
+        </div>
+
+        <div class="mt-3 p-2.5 rounded-lg bg-amber-900/15 border border-amber-800/30 text-[10px] text-amber-400/80">
+        ⚠ agent_live.md 필수 점검 — 브랜치·파일 충돌 방지 레지스트리
+        </div>
+        </div>`
+    ;
+    }
+
+    function renderUML_Settings() {
+      return
+        `<div class="p-4">
+        <div class="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">settings.json — 권한·훅·MCP 제어 흐름</div>
+        <div class="grid grid-cols-3 gap-3">
+        <div class="uml-box border border-rose-700/50 rounded-lg p-2.5 bg-rose-900/15">
+        <div class="text-[10px] font-semibold text-rose-300 mb-1.5">permissions.deny</div>
+        <div class="space-y-1 text-[10px] text-slate-600 font-mono">
+        <div class="text-rose-500/70">rm -rf *</div>
+        <div class="text-rose-500/70">push --force *</div>
+        </div>
+        <div class="mt-2 text-[9px] text-slate-700">allow보다 우선 적용</div>
+        </div>
+        <div class="uml-box border border-emerald-700/50 rounded-lg p-2.5 bg-emerald-900/15">
+        <div class="text-[10px] font-semibold text-emerald-300 mb-1.5">permissions.allow</div>
+        <div class="space-y-1 text-[10px] text-slate-600 font-mono">
+        <div class="text-emerald-500/70">Bash(git *)</div>
+        <div class="text-emerald-500/70">Read, Edit, Write</div>
+        </div>
+        <div class="mt-2 text-[9px] text-slate-700">glob 패턴 지원</div>
+        </div>
+        <div class="uml-box border border-sky-700/50 rounded-lg p-2.5 bg-sky-900/15">
+        <div class="text-[10px] font-semibold text-sky-300 mb-1.5">mcpServers</div>
+        <div class="space-y-1 text-[10px] text-slate-600 font-mono">
+        <div class="text-sky-500/70">context7</div>
+        <div class="text-sky-500/70">claude-docs</div>
+        </div>
+        <div class="mt-2 text-[9px] text-slate-700">표준 프로토콜</div>
+        </div>
+        </div>
+        <div class="mt-3 uml-box border border-violet-700/50 rounded-lg p-2.5 bg-violet-900/15">
+        <div class="text-[10px] font-semibold text-violet-300 mb-1.5">hooks 등록 흐름</div>
+        <div class="flex items-center gap-2 text-[10px] flex-wrap">
+        <span class="tag-pill tag-violet">Stop 이벤트</span>
+        <span class="text-slate-600">→</span>
+        <span class="font-mono text-slate-500">collect_experiment.sh</span>
+        <span class="text-slate-600">→</span>
+        <span class="tag-pill tag-emerald">토큰 0소모</span>
+        <span class="text-slate-600">→</span>
+        <span class="tag-pill tag-sky">스냅샷 저장</span>
+        </div>
+        </div>
+        </div>`
+    ;
+    }
+
+    function renderUML_OTel() {
+      const metrics = [
+        {name:'token.usage', val:72, type:'cacheRead 72%', bar:'bar-cache'},
+        {name:'cost.usage',  val:45, type:'$0.18/세션', bar:'bar-output'},
+        {name:'api_request', val:88, type:'p95 1.2s', bar:'bar-input'},
+      ];
+      return
+        `<div class="p-4">
+        <div class="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">OTel 메트릭 현황</div>
+        <div class="space-y-3">
+        ${metrics.map(m => `
+    <div>
+            <div class="flex justify-between mb-1 text-[10px]">
+              <span class="font-mono text-slate-500">claude_code.$
+        {
+            m.name
+        }
+    </span>
+              <span class="text-slate-400">$
+        {
+            m.type
+        }
+    </span>
+            </div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full $
+        {
+            m.bar
+        }
+     prog-fill rounded-full" style="width:$
+        {
+            m.val
+        }
+    %"></div>
+            </div>
+          </div>
+        `).join('')}
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+        <div class="uml-box border border-emerald-700/40 rounded-lg p-2 bg-emerald-900/10">
+        <div class="text-emerald-400 font-semibold mb-1">캐시 절감</div>
+        <div class="text-slate-500">cacheRead = input 대비</div>
+        <div class="text-emerald-400 text-base font-bold mt-1">90%↓</div>
+        </div>
+        <div class="uml-box border border-amber-700/40 rounded-lg p-2 bg-amber-900/10">
+        <div class="text-amber-400 font-semibold mb-1">목표 히트율</div>
+        <div class="text-slate-500">전체 input 대비</div>
+        <div class="text-amber-400 text-base font-bold mt-1">80%+</div>
+        </div>
+        </div>
+        </div>`
+    ;
+    }
+
+    function renderUML_Rules() {
+      return
+        `<div class="p-4">
+        <div class="text-xs text-slate-500 mb-3 font-semibold uppercase tracking-wider">모듈형 규칙 — 세션 컨텍스트 주입 흐름</div>
+        <div class="flex items-center gap-2 flex-wrap">
+        <div class="uml-box border border-amber-700/50 rounded-lg px-3 py-2 text-center bg-amber-900/15">
+        <div class="text-[11px] font-mono text-amber-300">CLAUDE.md</div>
+        <div class="text-[9px] text-slate-600 mt-0.5">import 진입점</div>
+        </div>
+        <span class="text-slate-600">→</span>
+        <div class="flex flex-col gap-1.5">
+        ${['java-spring-rules.md','java-code-style.md','git.md','openapi-conventions.md'].map(f =>
+        `
+    <div class="uml-box border border-emerald-700/40 rounded px-2.5 py-1 flex items-center gap-2 bg-emerald-900/10">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                <span class="text-[10px] font-mono text-emerald-300/80">$
+        {
+            f
+        }
+    </span>
+              </div>
+        `).join('')}
+        </div>
+        <span class="text-slate-600">→</span>
+        <div class="uml-box border border-violet-600/50 rounded-lg px-3 py-2 text-center bg-violet-900/20">
+        <div class="text-[11px] font-mono text-violet-300">세션 컨텍스트</div>
+        <div class="text-[9px] text-slate-600 mt-0.5">병합 주입</div>
+        </div>
+        </div>
+        <div class="mt-3 text-[10px] text-slate-600">
+        CLAUDE.md 본문 줄 수에 rules/*.md 내용도 합산됩니다. 총 300줄 미만 유지 권장.
+        </div>
+        </div>`
+    ;
+    }
+
+    // ── Animation ──────────────────────────────────────────────────
+    function runHookAnimation() {
+      const ids = ['hs0','hs1','hs2','hs3','hs4','hs5'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.opacity = '0.25';
+      });
+      ids.forEach((id, i) => {
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.style.opacity = '1';
+          if (id === 'hs2') el.classList.add('anim-block');
+          else el.classList.add('anim-flow');
+          setTimeout(() => {
+            el.classList.remove('anim-block','anim-flow');
+          }, 700);
+        }, i * 400);
+      });
+    }
+
+    // ── Accordion ──────────────────────────────────────────────────
+    function toggleAcc(id) {
+      const el = document.getElementById(id);
+      const caret = document.getElementById(id+'-caret');
+      if (!el) return;
+      el.classList.toggle('open');
+      if (caret) caret.style.transform = el.classList.contains('open') ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }
+
+    // ── Folder Toggle ──────────────────────────────────────────────
+    function toggleFolder(id) {
+      const children = document.getElementById(id+'-children');
+      const caret = document.getElementById(id+'-caret');
+      if (!children) return;
+      const isHidden = children.classList.contains('hidden');
+      children.classList.toggle('hidden', !isHidden);
+      if (caret) caret.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+    }
+
+    // ── Main Selection ─────────────────────────────────────────────
+    function selectItem(key) {
+      const d = ITEMS[key];
+      if (!d) return;
+      currentItem = key;
+
+      clearActiveItems();
+      const itemEl = document.getElementById('item-'+key);
+      if (itemEl) itemEl.classList.add('active');
+
+      setNavBreadcrumb(d.breadcrumb);
+      setTags(d.tags);
+      setCode(d.editorTitle, d.code);
+      setToken(d.token);
+      setHookStatus(d.hooks);
+      setGov(d.gov);
+
+      // UML
+      let umlHtml = '';
+      switch (d.umlType) {
+        case 'claudemd':  umlHtml = renderUML_ClaudeMD(d.lineCount); break;
+        case 'hooks':     umlHtml = renderUML_Hooks(); break;
+        case 'skills':    umlHtml = renderUML_Skills(); break;
+        case 'agents':    umlHtml = renderUML_Agents(); break;
+        case 'settings':  umlHtml = renderUML_Settings(); break;
+        case 'otel':      umlHtml = renderUML_OTel(); break;
+        case 'rules':     umlHtml = renderUML_Rules(); break;
+        default: umlHtml = '<div class="p-4 text-slate-600 text-sm">다이어그램 없음</div>';
+      }
+      qs('umlContent').innerHTML = umlHtml;
+
+      // rules 폴더 자동 펼치기
+      if (key.startsWith('rules-')) {
+        const children = document.getElementById('rules-children');
+        if (children) children.classList.remove('hidden');
+        const caret = document.getElementById('rules-caret');
+        if (caret) caret.style.transform = 'rotate(90deg)';
+      }
+    }
+
+    // ── Init ───────────────────────────────────────────────────────
+    selectItem('claudemd');
+</script>
+</body>
+</html>
