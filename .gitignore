@@ -1,0 +1,15 @@
+
+# Jekyll
+_site/
+.jekyll-metadata
+.jekyll-cache/
+Gemfile.lock
+
+# Local server
+.DS_Store
+.env.local
+.env.*.local
+
+# Build artifacts
+.bundle/
+vendor/
