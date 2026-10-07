@@ -1,0 +1,131 @@
+{
+  "glossary": {
+    "task": {
+      "definition": "Smallest unit of work with measurable completion: produces testable code or configuration change, has a review gate, can be evaluated independently of prior tasks.",
+      "examples": [
+        "Implement authentication handler",
+        "Add database schema migration"
+      ],
+      "not_examples": [
+        "Write failing test (this is a step, not a task)",
+        "Run test (this is a step within a task)"
+      ]
+    },
+    "step": {
+      "definition": "Single action within a task, executable in 2-5 minutes of focused work, with visible input/output.",
+      "examples": [
+        "Write failing test",
+        "Run test to verify failure",
+        "Implement minimal code"
+      ],
+      "not_examples": [
+        "Implement authentication (this is a task, contains multiple steps)"
+      ]
+    },
+    "command": {
+      "definition": "Explicit instruction: either a shell invocation (bash, git) or a CLI flag. Commands are deterministic and executable.",
+      "examples": [
+        "git add file.py",
+        "claude code --skill superpowers:writing-plans"
+      ],
+      "not_examples": [
+        "Conclusion first (this is a directive, not a command)"
+      ]
+    },
+    "directive": {
+      "definition": "Guiding principle from CLAUDE.md or project rules. Directives shape decision-making, not deterministic execution.",
+      "examples": [
+        "Conclusion first",
+        "No trailing summary",
+        "One-line comments only"
+      ],
+      "not_examples": [
+        "git commit (this is a command, not guidance)"
+      ]
+    },
+    "hook": {
+      "definition": "Event-triggered script in ~/.claude/hooks/. Fires on Claude Code lifecycle event (UserPromptSubmit, Stop, etc.).",
+      "examples": [
+        "collect-experiment-quality.sh (Stop hook)",
+        "tab-rename.sh (UserPromptSubmit hook)"
+      ],
+      "not_examples": [
+        "superpowers plugin (plugins are extensions, hooks are local scripts)"
+      ]
+    },
+    "skill": {
+      "definition": "Callable capability bundled in a plugin. Has a name (e.g., superpowers:writing-plans) and parameters. Invokes via Skill tool.",
+      "examples": [
+        "superpowers:writing-plans",
+        "superpowers:subagent-driven-development"
+      ],
+      "not_examples": [
+        "Agent (agents are different: fresh context, open-ended reasoning)"
+      ]
+    },
+    "agent": {
+      "definition": "Subagent spawned via Agent tool: fresh context, specialized for a task type (code-reviewer, explore, etc.). Different from skill.",
+      "examples": [
+        "code-reviewer agent",
+        "general-purpose agent",
+        "Explore agent"
+      ],
+      "not_examples": [
+        "Skill (skills run in session context, agents have fresh context)"
+      ]
+    },
+    "plugin": {
+      "definition": "Installed extension from a marketplace (e.g., superpowers, context7). Loaded at session start, provides skills or MCP servers.",
+      "examples": [
+        "superpowers@claude-plugins-official",
+        "context7@claude-plugins-official",
+        "understand-anything@understand-anything"
+      ],
+      "not_examples": [
+        "Hook (hooks are user scripts; plugins are packaged extensions)"
+      ]
+    },
+    "worktree": {
+      "definition": "Isolated git working copy of the repo, created via superpowers:using-git-worktrees. Used for parallel feature branches. Located at .worktrees/",
+      "examples": [
+        ".worktrees/feature-auth",
+        ".worktrees/refactor-database"
+      ],
+      "not_examples": [
+        "Branch (branch is git concept; worktree is git + filesystem isolation)"
+      ]
+    },
+    "session": {
+      "definition": "One conversation with Claude Code. Starts at session ID, ends at Stop hook trigger. Has one model, one context window.",
+      "examples": [
+        "Session 12345 — implement auth",
+        "Session 12346 — review PRs"
+      ],
+      "not_examples": [
+        "Task (session may contain many tasks; task is code work unit)"
+      ]
+    },
+    "model": {
+      "definition": "Claude variant handling inference: haiku (fast, cheap), sonnet (balanced), opus (capable, slow). Set in settings.json::model.",
+      "examples": [
+        "haiku",
+        "sonnet",
+        "opus"
+      ],
+      "not_examples": [
+        "Agent (model is the LLM; agent is a dispatch pattern)"
+      ]
+    },
+    "token_cost": {
+      "definition": "Approximate inference price per command invocation, estimated from context size and model. Used to measure harness efficiency.",
+      "examples": [
+        "File read: ~450 tokens",
+        "Skill invocation: ~720 tokens",
+        "Agent dispatch: ~890 tokens"
+      ],
+      "not_examples": [
+        "Wall-clock time (different metric; can be decoupled)"
+      ]
+    }
+  }
+}

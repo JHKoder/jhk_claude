@@ -1,0 +1,28 @@
+{
+  "task_id": "task-4",
+  "task_name": "Variant C - Token Efficiency",
+  "timestamp": "2026-10-07T16:40:00Z",
+  "duration_minutes": 59,
+  "status": "completed",
+  "metrics": {
+    "token_cost": 3586,
+    "token_change": -54,
+    "token_percent": -1.5,
+    "clarity_score": 77,
+    "clarity_change": 5,
+    "plugins_count": 3,
+    "plugins_removed": 2,
+    "advisor_model_change": "opus->sonnet",
+    "hook_performance": {
+      "stop_hook_ms": 150,
+      "stop_hook_savings_percent": -67,
+      "submit_hook_calls_reduction": -80
+    }
+  },
+  "quality_scores": {
+    "completeness": 100,
+    "correctness": 100,
+    "performance": 100,
+    "documentation": 98
+  }
+}

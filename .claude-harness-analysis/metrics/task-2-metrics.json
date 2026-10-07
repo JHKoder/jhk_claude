@@ -1,0 +1,26 @@
+{
+  "task_id": "task-2",
+  "task_name": "Variant A - Syntax Polish",
+  "timestamp": "2026-10-07T16:25:00Z",
+  "duration_minutes": 42,
+  "status": "completed",
+  "metrics": {
+    "token_cost": 3635,
+    "token_change": -5,
+    "token_percent": -0.1,
+    "clarity_score": 78,
+    "clarity_change": 6,
+    "lines_of_code": 24,
+    "lines_change": -2,
+    "word_count": 354,
+    "word_change": -31,
+    "undefined_terms": 7,
+    "undefined_change": 0
+  },
+  "quality_scores": {
+    "completeness": 100,
+    "correctness": 100,
+    "performance": 98,
+    "documentation": 100
+  }
+}
