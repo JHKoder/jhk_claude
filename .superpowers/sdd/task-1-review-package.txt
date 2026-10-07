@@ -1,0 +1,117 @@
+diff --git a/.experiment/collectors/store.py b/.experiment/collectors/store.py
+index ab06b6d..e9d3ebb 100644
+--- a/.experiment/collectors/store.py
++++ b/.experiment/collectors/store.py
+@@ -90,20 +90,32 @@ def _conn(db_path: Path | None = None) -> sqlite3.Connection:
+ 
+         CREATE TABLE IF NOT EXISTS config_versions (
+             root_hash     TEXT PRIMARY KEY,
+             recorded_at   TEXT NOT NULL DEFAULT (datetime('now')),
+             manifest_json TEXT NOT NULL,
+             compressed    BLOB NOT NULL,
+             size_before   INTEGER NOT NULL DEFAULT 0,
+             size_after    INTEGER NOT NULL DEFAULT 0,
+             file_count    INTEGER NOT NULL DEFAULT 0
+         );
++
++        CREATE TABLE IF NOT EXISTS quality_metrics (
++            id INTEGER PRIMARY KEY AUTOINCREMENT,
++            session_id TEXT NOT NULL UNIQUE,
++            task_id TEXT NOT NULL,
++            accuracy REAL,
++            first_pass INTEGER,
++            revision_count INTEGER,
++            complexity_score REAL,
++            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
++            FOREIGN KEY(session_id) REFERENCES runs(session_id)
++        );
+     """)
+     con.commit()
+ 
+     # 기존 DB 마이그레이션 (컬럼 누락 시 추가)
+     existing = {r[1] for r in con.execute("PRAGMA table_info(runs)").fetchall()}
+     for col, definition in [
+         ("test_pass_rate",    "REAL    DEFAULT NULL"),
+         ("changed_files_cnt", "INTEGER DEFAULT 0"),
+         ("added_lines",       "INTEGER DEFAULT 0"),
+         ("deleted_lines",     "INTEGER DEFAULT 0"),
+@@ -320,20 +332,62 @@ def all_runs_multi() -> list[dict]:
+ 
+ 
+ def repo_labels() -> list[str]:
+     """집계 가능한 레포 키 목록."""
+     repos = _all_repo_dbs()
+     if not repos:
+         return [_repo_key()]
+     return [label for label, _ in repos]
+ 
+ 
++def init_quality_metrics_table():
++    """품질 메트릭 테이블 초기화"""
++    con = _conn()
++    migrations_dir = Path(__file__).parent.parent / "schema_migrations"
++    migration_file = migrations_dir / "001_add_quality_metrics.sql"
++    if migration_file.exists():
++        with open(migration_file) as f:
++            con.executescript(f.read())
++        con.commit()
++    con.close()
++
++
++def insert_quality_metric(session_id: str, task_id: str, accuracy: float | None = None,
++                         first_pass: int | None = None, revision_count: int | None = None,
++                         complexity_score: float | None = None) -> int:
++    """품질 메트릭 저장"""
++    con = _conn()
++    cur = con.execute("""
++        INSERT OR REPLACE INTO quality_metrics
++        (session_id, task_id, accuracy, first_pass, revision_count, complexity_score)
++        VALUES (?, ?, ?, ?, ?, ?)
++    """, (session_id, task_id, accuracy, first_pass, revision_count, complexity_score))
++    con.commit()
++    row_id = cur.lastrowid
++    con.close()
++    return row_id
++
++
++def get_quality_metrics(session_id: str) -> dict | None:
++    """세션별 품질 메트릭 조회"""
++    con = _conn()
++    cur = con.execute("SELECT * FROM quality_metrics WHERE session_id = ?", (session_id,))
++    row = cur.fetchone()
++    if not row:
++        con.close()
++        return None
++    cols = [d[0] for d in cur.description]
++    result = dict(zip(cols, row))
++    con.close()
++    return result
++
++
+ if __name__ == "__main__":
+     cmd = sys.argv[1] if len(sys.argv) > 1 else "list"
+     if cmd == "list":
+         for r in list_runs():
+             print(json.dumps(r, ensure_ascii=False))
+     elif cmd == "compare" and len(sys.argv) == 4:
+         a, b = compare_runs(int(sys.argv[2]), int(sys.argv[3]))
+         print(json.dumps({"a": a, "b": b}, ensure_ascii=False, indent=2))
+     elif cmd == "repos":
+         for label, path in _all_repo_dbs():
+diff --git a/.experiment/schema_migrations/001_add_quality_metrics.sql b/.experiment/schema_migrations/001_add_quality_metrics.sql
+new file mode 100644
+index 0000000..8ae43d1
+--- /dev/null
++++ b/.experiment/schema_migrations/001_add_quality_metrics.sql
+@@ -0,0 +1,11 @@
++CREATE TABLE IF NOT EXISTS quality_metrics (
++    id INTEGER PRIMARY KEY AUTOINCREMENT,
++    session_id TEXT NOT NULL UNIQUE,
++    task_id TEXT NOT NULL,
++    accuracy REAL,
++    first_pass INTEGER,
++    revision_count INTEGER,
++    complexity_score REAL,
++    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
++    FOREIGN KEY(session_id) REFERENCES runs(session_id)
++);

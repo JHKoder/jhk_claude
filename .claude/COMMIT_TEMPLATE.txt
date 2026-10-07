@@ -1,0 +1,31 @@
+feat: 새 기능 추가
+fix: 버그 수정
+test: 테스트 추가/수정
+docs: 문서 추가/수정
+refactor: 코드 구조 개선 (기능 변화 없음)
+style: 코드 스타일 (formatting, missing semicolons, etc)
+chore: 빌드, 의존성 등 (코드 변화 없음)
+
+=== 형식 ===
+[type]: [한 문장 설명]
+
+[상세 설명 - 필요시]
+
+=== 예시 ===
+feat: add quality_metrics table and CRUD functions
+
+- Created quality_metrics table with 7 columns
+- Added init_quality_metrics_table() for initialization
+- Added insert_quality_metric() for data insertion
+- Added get_quality_metrics() for data retrieval
+
+test: add quality evaluation metric tests
+
+- Test accuracy calculation (perfect pass)
+- Test accuracy calculation (partial pass at 80%)
+- Test complexity score retrieval for Task A/C
+
+docs: add quality metrics usage guide
+
+- Added QUALITY_METRICS_GUIDE.md with metric definitions
+- Updated README.md with quality comparison section

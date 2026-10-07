@@ -1,0 +1,67 @@
+---
+layout: default
+---
+
+<article>
+    <div class="post-header">
+        <h1>{{ page.title }}</h1>
+        <div class="post-meta">
+            <span>📅 {{ page.date | date: '%Y년 %m월 %d일' }}</span>
+            <span>👤 {{ page.author | default: site.author }}</span>
+            {% if page.reading_time %}
+            <span>⏱️ {{ page.reading_time }}</span>
+            {% endif %}
+            {% if page.category %}
+            <span>📁 {{ page.category }}</span>
+            {% endif %}
+        </div>
+        {% if page.tags %}
+        <div style="margin-top: 12px;">
+            {% for tag in page.tags %}
+            <a href="{{ '/research/' | relative_url }}?tag={{ tag | url_encode }}" class="tag">#{{ tag }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="markdown-body">
+        {{ content }}
+    </div>
+
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+        <h3>📌 관련 연구</h3>
+        <div class="research-grid" style="margin-top: 20px;">
+            {% assign related = site.research | where_exp: 'item', 'item.title != page.title' %}
+            {% assign related_by_tag = '' | split: '' %}
+
+            {% for research in related %}
+                {% assign common = '' | split: '' %}
+                {% for tag in page.tags %}
+                    {% if research.tags contains tag %}
+                        {% assign common = common | push: tag %}
+                    {% endif %}
+                {% endfor %}
+                {% if common.size > 0 %}
+                    {% assign related_by_tag = related_by_tag | push: research %}
+                {% endif %}
+            {% endfor %}
+
+            {% for research in related_by_tag | sort: 'date' | reverse | limit: 3 %}
+            <a href="{{ research.url | relative_url }}" class="research-card">
+                <div class="research-card-title">{{ research.title }}</div>
+                <div class="research-card-meta">
+                    <span>{{ research.date | date: '%Y-%m-%d' }}</span>
+                </div>
+                <div class="research-card-excerpt">
+                    {{ research.excerpt | strip_html | truncatewords: 20 }}
+                </div>
+                <div class="research-card-tags">
+                    {% for tag in research.tags | limit: 3 %}
+                    <span class="tag">#{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</article>

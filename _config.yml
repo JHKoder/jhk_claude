@@ -1,0 +1,53 @@
+title: "JHK Claude Research Lab"
+description: "Claude Code 성능 분석 및 실험 연구소"
+author: "JHKoder"
+url: "https://github.com/JHKoder/jhk_claude"
+baseurl: "/jhk_claude"
+
+# Jekyll 설정
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+# 사이트 메타데이터
+locale: ko_KR
+timezone: Asia/Seoul
+
+# 페이지네이션
+paginate: 10
+paginate_path: "/research/:num/"
+
+# 모음 설정
+collections:
+  research:
+    output: true
+    permalink: /research/:path/
+  guides:
+    output: true
+    permalink: /guides/:path/
+
+defaults:
+  - scope:
+      path: ""
+      type: research
+    values:
+      layout: research
+  - scope:
+      path: ""
+      type: guides
+    values:
+      layout: page
+
+# 마크다운 처리
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+
+# SEO 설정
+social:
+  name: JHKoder
+  links:
+    - https://github.com/JHKoder

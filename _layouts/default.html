@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="{{ site.locale | default: 'ko_KR' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ page.excerpt | default: site.description }}">
+    <title>{{ page.title | default: site.title }}</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+    <style>
+        :root {
+            --primary-color: #0366d6;
+            --primary-dark: #044289;
+            --border-color: #e1e4e8;
+            --bg-light: #fafbfc;
+            --text-dark: #24292e;
+            --text-secondary: #586069;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            color: var(--text-dark);
+            background: #fff;
+            line-height: 1.6;
+        }
+
+        .site-header {
+            background: #fff;
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .site-header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .site-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-dark);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .site-title:hover {
+            color: var(--primary-color);
+        }
+
+        .site-nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .site-nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .site-nav a:hover {
+            color: var(--primary-color);
+        }
+
+        .site-nav a.active {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .main-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 250px;
+            gap: 30px;
+            margin: 40px auto;
+            max-width: 1280px;
+            padding: 0 20px;
+        }
+
+        .main-content {
+            min-width: 0;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+        }
+
+        .sidebar-box {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-content {
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .sidebar-content a {
+            color: var(--primary-color);
+            text-decoration: none;
+            display: block;
+            padding: 6px 0;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+
+        .sidebar-content a:hover {
+            background: rgba(3, 102, 214, 0.1);
+            padding-left: 4px;
+        }
+
+        .tag {
+            display: inline-block;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin: 4px 4px 4px 0;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .tag:hover {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .research-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+
+        .research-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .research-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 3px 12px rgba(3, 102, 214, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .research-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .research-card-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .research-card-excerpt {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 12px;
+            flex-grow: 1;
+        }
+
+        .research-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: auto;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+        }
+
+        .sort-menu {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .sort-btn {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .sort-btn:hover,
+        .sort-btn.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+
+        .category-filter {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .category-tag {
+            padding: 6px 12px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .category-tag:hover,
+        .category-tag.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+
+        .footer {
+            background: var(--bg-light);
+            border-top: 1px solid var(--border-color);
+            padding: 40px 0;
+            margin-top: 60px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .footer-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .footer-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .footer-section a {
+            display: block;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 4px 0;
+            transition: color 0.2s;
+        }
+
+        .footer-section a:hover {
+            color: var(--primary-color);
+        }
+
+        .footer-divider {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .main-wrapper {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .research-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .site-nav {
+                gap: 10px;
+                font-size: 12px;
+            }
+        }
+
+        .markdown-body {
+            font-size: 16px;
+        }
+
+        .post-meta {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .post-header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .post-header h1 {
+            font-size: 32px;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="site-header-inner">
+                <a href="{{ '/' | relative_url }}" class="site-title">
+                    🧪 {{ site.title }}
+                </a>
+                <nav class="site-nav">
+                    <a href="{{ '/' | relative_url }}" {% if page.url == '/' %}class="active"{% endif %}>홈</a>
+                    <a href="{{ '/research/' | relative_url }}" {% if page.layout == 'research' or page.url contains '/research/' %}class="active"{% endif %}>연구</a>
+                    <a href="{{ '/guides/' | relative_url }}" {% if page.layout == 'guide' %}class="active"{% endif %}>가이드</a>
+                    <a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>소개</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-wrapper">
+        <div class="main-content">
+            {{ content }}
+        </div>
+
+        <aside class="sidebar">
+            <!-- 사이트 소개 -->
+            <div class="sidebar-box">
+                <div class="sidebar-title">📌 이 사이트</div>
+                <div class="sidebar-content">
+                    <p style="font-size: 13px; line-height: 1.6; margin-bottom: 10px;">
+                        Claude Code 세션 분석 및 성능 최적화 연구 블로그입니다.
+                    </p>
+                    <a href="{{ '/about/' | relative_url }}">전체 소개</a>
+                </div>
+            </div>
+
+            <!-- 카테고리 -->
+            <div class="sidebar-box">
+                <div class="sidebar-title">📁 카테고리</div>
+                <div class="sidebar-content">
+                    <a href="{{ '/research/' | relative_url }}">전체 연구 ({{ site.research | size }})</a>
+                    <a href="{{ '/research/' | relative_url }}?tag=performance">성능 분석</a>
+                    <a href="{{ '/research/' | relative_url }}?tag=efficiency">효율성</a>
+                    <a href="{{ '/research/' | relative_url }}?tag=quality">품질 지표</a>
+                    <a href="{{ '/research/' | relative_url }}?tag=trends">추세 분석</a>
+                    <a href="{{ '/research/' | relative_url }}?tag=models">모델 비교</a>
+                </div>
+            </div>
+
+            <!-- 최신 연구 -->
+            <div class="sidebar-box">
+                <div class="sidebar-title">🔥 최신 연구</div>
+                <div class="sidebar-content">
+                    {% for research in site.research | sort: 'date' | reverse | limit: 5 %}
+                    <a href="{{ research.url | relative_url }}">
+                        {{ research.title }}
+                    </a>
+                    <div style="font-size: 11px; color: #999; margin-bottom: 8px;">
+                        {{ research.date | date: '%Y-%m-%d' }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 태그 클라우드 -->
+            <div class="sidebar-box">
+                <div class="sidebar-title">🏷️ 태그</div>
+                <div class="sidebar-content">
+                    {% assign all_tags = '' | split: '' %}
+                    {% for research in site.research %}
+                        {% assign all_tags = all_tags | concat: research.tags %}
+                    {% endfor %}
+                    {% assign unique_tags = all_tags | uniq | sort %}
+                    {% for tag in unique_tags %}
+                    <a href="{{ '/research/' | relative_url }}?tag={{ tag | url_encode }}">
+                        #{{ tag }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 내부 프로젝트 -->
+            <div class="sidebar-box">
+                <div class="sidebar-title">🚀 내부 시스템</div>
+                <div class="sidebar-content">
+                    <a href="{{ '/docs/experiments/' | relative_url }}">실험 분석</a>
+                    <a href="http://localhost:7788" target="_blank">라이브 대시보드</a>
+                    <a href="{{ '/EXPERIMENT_SETUP.md' | relative_url }}">시스템 설정</a>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h3>🔗 링크</h3>
+                    <a href="https://github.com/JHKoder/jhk_claude">GitHub Repository</a>
+                    <a href="{{ '/research/' | relative_url }}">전체 연구</a>
+                    <a href="{{ '/about/' | relative_url }}">프로젝트 소개</a>
+                </div>
+                <div class="footer-section">
+                    <h3>📚 리소스</h3>
+                    <a href="{{ '/EXPERIMENT_SETUP.md' | relative_url }}">시스템 가이드</a>
+                    <a href="{{ '/docs/experiments/' | relative_url }}">분석 리포트</a>
+                    <a href="{{ '/guides/' | relative_url }}">사용 가이드</a>
+                </div>
+                <div class="footer-section">
+                    <h3>👤 저자</h3>
+                    <a href="mailto:jeonghun.kang.dev@gmail.com">Contact</a>
+                    <a href="https://github.com/JHKoder">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-divider">
+                <p>&copy; 2026 {{ site.author }}. All rights reserved.</p>
+                <p style="font-size: 12px;">Updated: {{ 'now' | date: '%Y-%m-%d %H:%M:%S' }}</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 검색 기능
+        function filterResearch(query) {
+            const cards = document.querySelectorAll('.research-card');
+            cards.forEach(card => {
+                const title = card.querySelector('.research-card-title').textContent.toLowerCase();
+                const excerpt = card.querySelector('.research-card-excerpt').textContent.toLowerCase();
+                if (title.includes(query.toLowerCase()) || excerpt.includes(query.toLowerCase())) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // 정렬 기능
+        function sortResearch(type) {
+            const container = document.querySelector('.research-grid');
+            if (!container) return;
+
+            const cards = Array.from(document.querySelectorAll('.research-card'));
+            cards.sort((a, b) => {
+                if (type === 'latest') {
+                    return new Date(b.dataset.date) - new Date(a.dataset.date);
+                } else if (type === 'oldest') {
+                    return new Date(a.dataset.date) - new Date(b.dataset.date);
+                } else if (type === 'title') {
+                    return a.querySelector('.research-card-title').textContent
+                        .localeCompare(b.querySelector('.research-card-title').textContent, 'ko');
+                }
+                return 0;
+            });
+
+            cards.forEach(card => container.appendChild(card));
+        }
+    </script>
+</body>
+</html>
