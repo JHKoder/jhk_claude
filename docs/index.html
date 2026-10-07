@@ -291,8 +291,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>🎯 코드 품질 측정 시스템</h1>
-            <p>토큰 효율 vs 코드 품질을 정량화하고 자동 분석하는 완전 자동화 시스템</p>
+            <h1>🔬 JHK의 Claude 연구소</h1>
+            <p>Claude Code 세션 분석 및 성능 최적화 연구 블로그</p>
         </header>
 
         <div class="content">
@@ -686,6 +686,143 @@ Best Performer:
             // Add active class to clicked button
             event.target.classList.add('active');
         }
+
+        // Dynamic blog metadata loading
+        async function loadBlogMetadata() {
+            try {
+                const response = await fetch('./data/blog-metadata.json');
+                const metadata = await response.json();
+                renderBlogSections(metadata);
+            } catch (error) {
+                console.error('Failed to load blog metadata:', error);
+                // Graceful fallback - keep static content
+            }
+        }
+
+        function renderBlogSections(metadata) {
+            const overviewTab = document.getElementById('overview');
+
+            // Create blog sections container
+            const blogSection = document.createElement('div');
+            blogSection.className = 'section';
+            blogSection.innerHTML = `
+                <h2>📚 JHK의 Claude 연구소</h2>
+                <p style="color: #666; margin-bottom: 30px; font-size: 1.05em;">
+                    ${metadata.site.description}
+                </p>
+            `;
+
+            // Add categories section
+            if (metadata.categories && metadata.categories.length > 0) {
+                const categoriesHtml = `
+                    <div style="margin-bottom: 40px;">
+                        <h3 style="color: #333; border: none; margin-bottom: 15px;">🏷️ 카테고리</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                            ${metadata.categories.map(cat => `
+                                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.3s;"
+                                     onmouseover="this.style.borderColor='#667eea'; this.style.background='#f0f0ff';"
+                                     onmouseout="this.style.borderColor='#ddd'; this.style.background='#f9f9f9';"
+                                     onclick="filterByCategory('${cat.id}')">
+                                    <div style="font-size: 1.5em; margin-bottom: 8px;">${cat.icon}</div>
+                                    <strong>${cat.name}</strong>
+                                    <div style="color: #999; font-size: 0.9em; margin-top: 5px;">${cat.count || 0}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                blogSection.innerHTML += categoriesHtml;
+            }
+
+            // Add featured research section
+            if (metadata.featured_research && metadata.featured_research.length > 0) {
+                const featuredArticles = metadata.research.filter(r => metadata.featured_research.includes(r.id));
+                if (featuredArticles.length > 0) {
+                    const featuredHtml = `
+                        <div style="margin-bottom: 40px;">
+                            <h3 style="color: #333; border: none; margin-bottom: 15px;">🔥 최신 연구</h3>
+                            <div style="display: grid; gap: 20px;">
+                                ${featuredArticles.map(article => `
+                                    <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 20px; border-radius: 8px; border-left: 4px solid #667eea;">
+                                        <h4 style="color: #667eea; margin: 0 0 10px 0;">${article.title}</h4>
+                                        <p style="color: #666; margin: 10px 0; font-size: 0.95em;">${article.summary}</p>
+                                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0;">
+                                            ${(article.tags || []).map(tag => `<span style="background: #667eea; color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.85em;">${tag}</span>`).join('')}
+                                        </div>
+                                        <small style="color: #999;">${article.date}</small>
+                                        <div style="margin-top: 10px;">
+                                            <a href="${article.url}" style="color: #667eea; text-decoration: none; font-weight: 500;">자세히 읽기 →</a>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    blogSection.innerHTML += featuredHtml;
+                }
+            }
+
+            // Add tags section
+            if (metadata.tags && metadata.tags.length > 0) {
+                const tagsHtml = `
+                    <div style="margin-bottom: 40px;">
+                        <h3 style="color: #333; border: none; margin-bottom: 15px;">🏷️ 태그</h3>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            ${metadata.tags.map(tag => `
+                                <span style="background: #f0f0f0; padding: 8px 15px; border-radius: 20px; cursor: pointer; transition: all 0.3s;"
+                                      onmouseover="this.style.background='#667eea'; this.style.color='white';"
+                                      onmouseout="this.style.background='#f0f0f0'; this.style.color='inherit';"
+                                      onclick="filterByTag('${tag.name}')" title="${tag.count} articles">
+                                    ${tag.name} <small style="opacity: 0.7;">(${tag.count})</small>
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                blogSection.innerHTML += tagsHtml;
+            }
+
+            // Add systems section
+            if (metadata.systems && metadata.systems.length > 0) {
+                const systemsHtml = `
+                    <div style="margin-bottom: 40px;">
+                        <h3 style="color: #333; border: none; margin-bottom: 15px;">🚀 내부 시스템</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                            ${metadata.systems.map(system => `
+                                <div style="border: 1px solid #ddd; padding: 20px; border-radius: 8px; transition: all 0.3s;"
+                                     onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102,126,234,0.2)';"
+                                     onmouseout="this.style.borderColor='#ddd'; this.style.boxShadow='none';">
+                                    <h4 style="color: #667eea; margin-top: 0;">${system.icon} ${system.name}</h4>
+                                    <p style="color: #666; font-size: 0.95em; margin: 10px 0;">${system.description}</p>
+                                    <small style="color: #999; display: inline-block; padding: 4px 8px; background: #f5f5f5; border-radius: 4px;">${system.status}</small>
+                                    <div style="margin-top: 10px;">
+                                        <a href="${system.url}" style="color: #667eea; text-decoration: none; font-weight: 500;">보기 →</a>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                blogSection.innerHTML += systemsHtml;
+            }
+
+            // Insert before the existing sections (after h2)
+            const firstSection = overviewTab.querySelector('.section');
+            if (firstSection) {
+                firstSection.parentNode.insertBefore(blogSection, firstSection);
+            }
+        }
+
+        function filterByCategory(categoryId) {
+            alert(`Filter by category: ${categoryId} (구현 예정)`);
+        }
+
+        function filterByTag(tag) {
+            alert(`Filter by tag: ${tag} (구현 예정)`);
+        }
+
+        // Load blog metadata on page load
+        document.addEventListener('DOMContentLoaded', loadBlogMetadata);
     </script>
 </body>
 </html>
