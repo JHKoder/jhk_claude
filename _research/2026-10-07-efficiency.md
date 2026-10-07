@@ -1,7 +1,7 @@
 ---
 layout: research
 title: "토큰 효율성 분석"
-date: 2026-10-07
+date: 2026-10-07 00:00:00
 category: efficiency
 tags: efficiency, tokens, cache
 summary: "실험 분석 결과"

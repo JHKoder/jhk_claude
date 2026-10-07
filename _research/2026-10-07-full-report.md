@@ -1,7 +1,7 @@
 ---
 layout: research
 title: "전체 분석 리포트"
-date: 2026-10-07
+date: 2026-10-07 00:00:00
 category: all
 tags: comprehensive, report, analysis
 summary: "실험 분석 결과"
