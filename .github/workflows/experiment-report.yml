@@ -48,14 +48,7 @@ jobs:
             echo "No changes in reports"
           else
             git add docs/experiments/
-            git commit -m "docs(experiment): add daily analysis $(date +%Y-%m-%d)
-
-Adds daily analysis:
-- Token efficiency analysis
-- Quality metrics report
-- 30-day trend analysis
-- Model performance comparison
-- JSON data export" || echo "Nothing to commit"
+            git commit -m "docs(experiment): add daily analysis $(date +%Y-%m-%d)" || echo "Nothing to commit"
             git push
           fi
 
