@@ -50,11 +50,12 @@ jobs:
             git add docs/experiments/
             git commit -m "docs(experiment): add daily analysis $(date +%Y-%m-%d)
 
-- 토큰 효율 분석
-- 품질 지표 리포트
-- 30일 추세 분석
-- 모델 성능 비교
-- JSON 데이터 저장" || echo "Nothing to commit"
+Adds daily analysis:
+- Token efficiency analysis
+- Quality metrics report
+- 30-day trend analysis
+- Model performance comparison
+- JSON data export" || echo "Nothing to commit"
             git push
           fi
 
