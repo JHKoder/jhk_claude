@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test</title>
+</head>
+<body>
+<div id="result"></div>
+<script>
+fetch('./data/blog-metadata.json')
+  .then(r => r.json())
+  .then(data => {
+    const result = document.getElementById('result');
+    result.innerHTML = `<pre>${JSON.stringify(data.site, null, 2)}</pre>`;
+  })
+  .catch(e => {
+    document.getElementById('result').innerHTML = `Error: ${e.message}`;
+  });
+</script>
+</body>
+</html>

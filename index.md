@@ -112,4 +112,57 @@ title: "홈"
             }
         });
     }
+
+    function filterResearch(query) {
+        const cards = document.querySelectorAll('.research-card');
+        const lowerQuery = query.toLowerCase();
+        cards.forEach(card => {
+            const text = card.innerText.toLowerCase();
+            if (text.includes(lowerQuery)) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    function sortResearch(order) {
+        const grid = document.querySelector('.research-grid');
+        const cards = Array.from(document.querySelectorAll('.research-card'));
+        
+        if (order === 'oldest') {
+            cards.sort((a, b) => new Date(a.dataset.date) - new Date(b.dataset.date));
+        } else if (order === 'title') {
+            cards.sort((a, b) => a.innerText.localeCompare(b.innerText));
+        } else {
+            cards.sort((a, b) => new Date(b.dataset.date) - new Date(a.dataset.date));
+        }
+        
+        cards.forEach(card => grid.appendChild(card));
+    }
+
+    // Load dynamic blog metadata
+    async function loadBlogMetadata() {
+        try {
+            const response = await fetch('{{ "/jhk_claude/assets/data/blog-metadata.json" | relative_url }}');
+            const metadata = await response.json();
+            updateStatsFromMetadata(metadata);
+        } catch (error) {
+            console.log('Blog metadata not yet available');
+        }
+    }
+
+    function updateStatsFromMetadata(metadata) {
+        // Update research count
+        const statCards = document.querySelectorAll('[style*="grid"]');
+        if (statCards.length > 0) {
+            const firstCard = statCards[0].querySelector('div:nth-child(1) div:nth-child(2)');
+            if (firstCard) {
+                firstCard.innerText = (metadata.research || []).length;
+            }
+        }
+    }
+
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadBlogMetadata);
 </script>
