@@ -15,7 +15,7 @@ echo ""
 
 cd "$PROJECT_ROOT"
 
-# Python 분석 실행
+# Python 분석 & 대시보드 생성
 python3 << 'PYTHON_EOF'
 import sys
 import os
@@ -26,15 +26,30 @@ exp_dir = Path.cwd() / ".experiment"
 sys.path.insert(0, str(exp_dir))
 
 from export.reports import export_reports
+from export.dashboard_generator import export_dashboard
+from export.blog_generator import generate_blog_posts
 
+# 분석 리포트
 result = export_reports('docs/experiments')
 
-print("\n✅ 리포트 생성 완료!")
-print("\n생성된 파일:")
+# 대시보드
+dashboard = export_dashboard('docs/experiments')
+
+# 블로그 게시물
+blog_files = generate_blog_posts('_research')
+
+print("\n✅ 분석 완료!")
+print("\n생성된 Markdown 리포트:")
 for report_type, path in result['individual_reports'].items():
     print(f"  - {report_type}")
 print(f"  - analysis.json")
 print(f"  - full-report.md (통합)")
+
+print("\n생성된 대시보드:")
+print(f"  - dashboard.html (인터랙티브 그래프)")
+
+print(f"\n생성된 블로그 게시물:")
+print(f"  - {len(blog_files)} posts")
 
 PYTHON_EOF
 

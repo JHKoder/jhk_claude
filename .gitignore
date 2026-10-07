@@ -13,3 +13,4 @@ Gemfile.lock
 # Build artifacts
 .bundle/
 vendor/
+/.idea/

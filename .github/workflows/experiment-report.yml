@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Generate Reports & Blog Posts
+      - name: Generate Reports, Blog Posts & Dashboard
         run: |
           python3 << 'EOF'
           import sys
@@ -38,6 +38,12 @@ jobs:
           blog_files = generate_blog_posts('_research')
           print('✓ Blog posts generated')
           print(f'  - {len(blog_files)} posts created')
+
+          # 인터랙티브 대시보드 생성
+          from export.dashboard_generator import export_dashboard
+          dashboard_file = export_dashboard('docs/experiments')
+          print('✓ Interactive dashboard generated')
+          print(f'  - {dashboard_file}')
           EOF
 
       - name: Commit & Push Reports
