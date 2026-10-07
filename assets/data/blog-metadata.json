@@ -39,12 +39,29 @@
   ],
   "research": [
     {
-      "id": "harness-engineering",
-      "title": "Claude 하네스 엔지니어링",
+      "id": "harness-engineering-detail",
+      "title": "Claude 하네스 엔지니어링 상세 분석",
       "date": "2026-10-07",
       "category": ["efficiency", "quality"],
       "tags": ["#tokens", "#quality", "#optimization"],
-      "summary": "토큰 효율 + 명확성 + 용어 정밀성 최적화 프로젝트 (6 tasks, 259 min)",
+      "summary": "토큰 효율 + 명확성 + 용어 정밀성 최적화의 전체 근거 및 검증",
+      "metrics": {
+        "token_savings": "-69 (-1.9%)",
+        "clarity_improvement": "+14 (+19%)",
+        "glossary_terms": 12,
+        "verification_pass": "100%"
+      },
+      "url": "research/2026-10-07-harness-engineering/",
+      "featured": true,
+      "status": "published"
+    },
+    {
+      "id": "harness-engineering",
+      "title": "Claude 하네스 엔지니어링 개요",
+      "date": "2026-10-07",
+      "category": ["efficiency", "quality"],
+      "tags": ["#tokens", "#quality", "#optimization"],
+      "summary": "6개 Task를 통한 토큰 효율 + 명확성 + 용어 정밀성 최적화 프로젝트",
       "metrics": {
         "token_savings": "-54 (-1.5%)",
         "clarity_improvement": "+14 (+19%)",
