@@ -3,8 +3,8 @@ layout: research
 title: "전체 분석 리포트"
 date: 2026-10-07 00:00:00
 category: all
-tags: comprehensive, report, analysis
-summary: "실험 분석 결과"
+tags: analysis
+summary: "토큰 효율, 품질, 추세, 모델 비교의 종합 분석"
 ---
 
 ```

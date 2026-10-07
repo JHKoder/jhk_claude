@@ -43,7 +43,7 @@
       "title": "Claude 하네스 엔지니어링",
       "date": "2026-10-07",
       "category": ["efficiency", "quality"],
-      "tags": ["#tokens", "#clarity", "#optimization"],
+      "tags": ["#tokens", "#quality", "#optimization"],
       "summary": "토큰 효율 + 명확성 + 용어 정밀성 최적화 프로젝트 (6 tasks, 259 min)",
       "metrics": {
         "token_savings": "-54 (-1.5%)",
@@ -91,7 +91,7 @@
       "title": "30일 추세 분석",
       "date": "2026-10-07",
       "category": ["trends"],
-      "tags": ["#trends", "#analysis", "#forecasting"],
+      "tags": ["#analysis", "#forecasting"],
       "summary": "Claude Code 세션 품질 및 토큰 소모의 월별 추세",
       "metrics": {
         "avg_quality": "87.5/100",
@@ -107,7 +107,7 @@
       "title": "모델별 성능 비교",
       "date": "2026-10-07",
       "category": ["models", "performance"],
-      "tags": ["#models", "#sonnet", "#performance"],
+      "tags": ["#models", "#performance"],
       "summary": "Haiku vs Sonnet vs Opus: 토큰 효율 vs 정확도 분석",
       "metrics": {
         "models_tested": 3,
@@ -123,7 +123,7 @@
       "title": "일일 세션 리포트",
       "date": "2026-10-07",
       "category": ["performance"],
-      "tags": ["#daily", "#sessions", "#analysis"],
+      "tags": ["#analysis"],
       "summary": "2026-10-07 Claude Code 세션별 토큰 및 품질 분석",
       "metrics": {
         "sessions": 15,
@@ -139,7 +139,7 @@
       "title": "전체 분석 리포트",
       "date": "2026-10-07",
       "category": ["all"],
-      "tags": ["#comprehensive", "#report", "#analysis"],
+      "tags": ["#analysis"],
       "summary": "토큰 효율, 품질, 추세, 모델 비교의 종합 분석",
       "metrics": {
         "sections": 5,
@@ -153,24 +153,14 @@
   ],
   "tags": [
     {
-      "name": "#cache",
-      "count": 2,
-      "related": ["efficiency", "performance"]
-    },
-    {
       "name": "#efficiency",
-      "count": 4,
+      "count": 2,
       "related": ["efficiency", "performance"]
     },
     {
       "name": "#tokens",
-      "count": 3,
-      "related": ["efficiency"]
-    },
-    {
-      "name": "#accuracy",
       "count": 2,
-      "related": ["quality"]
+      "related": ["efficiency"]
     },
     {
       "name": "#quality",
@@ -178,19 +168,44 @@
       "related": ["quality"]
     },
     {
-      "name": "#testing",
-      "count": 2,
+      "name": "#cache",
+      "count": 1,
+      "related": ["efficiency", "performance"]
+    },
+    {
+      "name": "#accuracy",
+      "count": 1,
       "related": ["quality"]
     },
     {
-      "name": "#models",
-      "count": 2,
-      "related": ["models", "performance"]
+      "name": "#testing",
+      "count": 1,
+      "related": ["quality"]
+    },
+    {
+      "name": "#optimization",
+      "count": 1,
+      "related": ["efficiency"]
     },
     {
       "name": "#analysis",
-      "count": 5,
+      "count": 3,
       "related": ["trends", "performance"]
+    },
+    {
+      "name": "#forecasting",
+      "count": 1,
+      "related": ["trends"]
+    },
+    {
+      "name": "#models",
+      "count": 1,
+      "related": ["models", "performance"]
+    },
+    {
+      "name": "#performance",
+      "count": 1,
+      "related": ["performance", "models"]
     }
   ],
   "systems": [
