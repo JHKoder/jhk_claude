@@ -37,66 +37,41 @@ summary: "CLAUDE.md 변경사항의 구체적인 추가/제거 항목 및 이유
 
 ---
 
-## 📄 2. 전체 파일 Before/After
+## 📄 2. 전체 파일 Diff 비교
 
-### ⬅️ Before (현재 상태 - 26줄)
-
-```markdown
+```diff
 # Claude Global Settings
 
 ## Response Style
 
-- Conclusion first — omit reasoning unless asked
-- Prefer diff/code blocks over prose explanations
-- No trailing summary after completing a task
-- Skip design/brainstorming phases for simple tasks (bug fixes, renames, etc.)
-- Comments only when the WHY is non-obvious — one line max, no explanatory comments
-- No emojis unless explicitly requested
+  - Conclusion first — omit reasoning unless asked
+  - Prefer diff/code blocks over prose explanations
+  - No trailing summary after completing a task
+- - Skip design/brainstorming phases for simple tasks (bug fixes, renames, etc.)
+- - Comments only when the WHY is non-obvious — one line max, no explanatory comments
++ - Comments only when the WHY is non-obvious — one line max
+  - No emojis unless explicitly requested
 
 ## File Reading
 
-- Never re-read a file already in context — reuse what's there
-- Read a file only once before Edit/Write
-- Use `find`/`grep` first to locate files; only Read what's needed
-- Use offset/limit to read only the relevant line range, not entire files
+  - Never re-read a file already in context — reuse what's there
+- - Read a file only once before Edit/Write
+- - Use `find`/`grep` first to locate files; only Read what's needed
+  - Use offset/limit to read only the relevant line range, not entire files
 
 ## Prohibited Behaviors
 
-- Do not auto-generate planning docs (analysis.md, plan.md, etc.) without being asked
-- Do not duplicate in comments or docs what the code already makes obvious
-- Do not add error handling, fallbacks, or validation beyond what the task requires
-- Do not refactor or abstract beyond the scope of the request
-- Never include "Co-Authored-By: Claude" or any Claude trace in commit messages
+  - Do not auto-generate planning docs (analysis.md, plan.md, etc.) without being asked
+  - Do not duplicate in comments or docs what the code already makes obvious
+  - Do not add error handling, fallbacks, or validation beyond what the task requires
+  - Do not refactor or abstract beyond the scope of the request
+  - Never include "Co-Authored-By: Claude" or any Claude trace in commit messages
 ```
 
----
-
-### ➡️ After (제안 상태 - 23줄)
-
-```markdown
-# Claude Global Settings
-
-## Response Style
-
-- Conclusion first — omit reasoning unless asked
-- Prefer diff/code blocks over prose explanations
-- No trailing summary after completing a task
-- Comments only when the WHY is non-obvious — one line max
-- No emojis unless explicitly requested
-
-## File Reading
-
-- Never re-read a file already in context — reuse what's there
-- Use offset/limit to read only the relevant line range, not entire files
-
-## Prohibited Behaviors
-
-- Do not auto-generate planning docs (analysis.md, plan.md, etc.) without being asked
-- Do not duplicate in comments or docs what the code already makes obvious
-- Do not add error handling, fallbacks, or validation beyond what the task requires
-- Do not refactor or abstract beyond the scope of the request
-- Never include "Co-Authored-By: Claude" or any Claude trace in commit messages
-```
+**Diff 범례**:
+- `  ` (공백) = 변경 없음
+- `-` (빨강) = 제거된 줄
+- `+` (파랑) = 추가/수정된 줄
 
 ---
 
@@ -104,134 +79,80 @@ summary: "CLAUDE.md 변경사항의 구체적인 추가/제거 항목 및 이유
 
 ### Section 1: Response Style
 
-#### Before (현재 상태)
-```markdown
-# Claude Global Settings
-
+```diff
 ## Response Style
 
-- Conclusion first — omit reasoning unless asked
-- Prefer diff/code blocks over prose explanations
-- No trailing summary after completing a task
-- Skip design/brainstorming phases for simple tasks (bug fixes, renames, etc.)
-- Comments only when the WHY is non-obvious — one line max, no explanatory comments
-- No emojis unless explicitly requested
+  - Conclusion first — omit reasoning unless asked
+  - Prefer diff/code blocks over prose explanations
+  - No trailing summary after completing a task
+- - Skip design/brainstorming phases for simple tasks (bug fixes, renames, etc.)
+- - Comments only when the WHY is non-obvious — one line max, no explanatory comments
++ - Comments only when the WHY is non-obvious — one line max
+  - No emojis unless explicitly requested
 ```
 
-**문제점**:
-- "Conclusion first" vs "Prefer diff/code blocks" 겹침 (메시지 중복)
-- "Skip design/brainstorming" 모호함 ("simple tasks"가 뭐인가?)
-- "one line max, no explanatory comments" 중복
+**변경 분석**:
 
-#### After (제안 상태)
-```markdown
-# Claude Global Settings
+#### ❌ 제거 (Line 4): "Skip design/brainstorming phases for simple tasks (bug fixes, renames, etc.)"
+- **이유**: "simple tasks"의 정의 모호 (버그 수정도 복잡할 수 있음)
+- **영향**: 단어 -11
 
-## Response Style
+#### 🔄 수정 (Line 5): Comments 규칙 축약
+- **제거 전**: `"... one line max, no explanatory comments"`
+- **수정 후**: `"... one line max"`
+- **이유**: "no explanatory comments" = "one line max"와 동일 의미 (중복)
+- **영향**: 단어 -5
 
-- Conclusion first — omit reasoning unless asked
-- Prefer diff/code blocks over prose explanations
-- No trailing summary after completing a task
-- Comments only when the WHY is non-obvious — one line max
-- No emojis unless explicitly requested
-```
-
-**변경사항**:
-- ❌ **제거**: Line 8 - "Skip design/brainstorming phases for simple tasks (bug fixes, renames, etc.)"
-  - **이유**: 모호한 정의 ("simple tasks" 기준 불명확) + 실제 적용 시 판단 어려움
-  - **영향**: 단어 -11, 명확성 +3점
-
-- 🔄 **수정**: Line 9 - Comments 규칙
-  - Before: `"Comments only when the WHY is non-obvious — one line max, no explanatory comments"`
-  - After: `"Comments only when the WHY is non-obvious — one line max"`
-  - **이유**: "no explanatory comments" = "one line max"와 동일 의미 (중복)
-  - **영향**: 단어 -5, 명확성 +2점
-
-**결과**: 
-- 6줄 → 5줄 (-1, -17%)
-- 단어 -16 (-12%)
-- 의미 100% 보존 ✅
+**결과**: 6줄 → 5줄 (-17%), 단어 -16 (-12%) ✅
 
 ---
 
 ### Section 2: File Reading
 
-#### Before (현재 상태)
-```markdown
+```diff
 ## File Reading
 
-- Never re-read a file already in context — reuse what's there
-- Read a file only once before Edit/Write
-- Use `find`/`grep` first to locate files; only Read what's needed
-- Use offset/limit to read only the relevant line range, not entire files
+  - Never re-read a file already in context — reuse what's there
+- - Read a file only once before Edit/Write
+- - Use `find`/`grep` first to locate files; only Read what's needed
+  - Use offset/limit to read only the relevant line range, not entire files
 ```
 
-**문제점**:
-- Line 15: "Never re-read" + Line 16: "Read only once" = 중복 규칙
-- Line 16: "Read a file only once before Edit/Write" 와 Line 15 의도 동일
-- Line 16: "Read only once before Edit/Write" 구체성 부족
+**변경 분석**:
 
-#### After (제안 상태)
-```markdown
-## File Reading
+#### ❌ 제거 (Line 2): "Read a file only once before Edit/Write"
+- **이유**: Line 1의 "Never re-read a file already in context"와 동일 의미 (중복)
+- **검증**: 두 규칙 모두 "한 번만 읽기" 원칙
+- **영향**: 단어 -7
 
-- Never re-read a file already in context — reuse what's there
-- Use offset/limit to read only the relevant line range, not entire files
-```
+#### ❌ 제거 (Line 3): "Use `find`/`grep` first to locate files; only Read what's needed"
+- **이유**: Line 4의 "offset/limit"이 더 효율적으로 같은 목적 달성
+- **통합**: 구체적 방법(find/grep) → 일반적 방법(offset/limit)으로 단순화
+- **영향**: 단어 -9
 
-**변경사항**:
-- ❌ **제거**: Line 15 - "Read a file only once before Edit/Write"
-  - **이유**: Line 14의 "Never re-read a file already in context" 와 동일한 의미 (중복)
-  - **검증**: 두 규칙 모두 "한 번만 읽기"를 의도하지만 같은 내용
-  - **영향**: 단어 -7, 중복 제거 ✅
-
-- ❌ **제거**: Line 16 - "Use `find`/`grep` first to locate files; only Read what's needed"
-  - **이유**: 너무 구체적 + "offset/limit"로 더 효율적으로 대체 가능
-  - **대체**: Line 17의 offset/limit 규칙으로 통합 가능
-  - **영향**: 단어 -9, 명확성 향상 ✅
-
-**결과**: 
-- 4줄 → 2줄 (-2, -50%)
-- 단어 -16 (-15%)
-- 의미 손실 없음 ✅
+**결과**: 4줄 → 2줄 (-50%), 단어 -16 (-15%) ✅
 
 ---
 
 ### Section 3: Prohibited Behaviors
 
-#### Before (현재 상태)
-```markdown
+```diff
 ## Prohibited Behaviors
 
-- Do not auto-generate planning docs (analysis.md, plan.md, etc.) without being asked
-- Do not duplicate in comments or docs what the code already makes obvious
-- Do not add error handling, fallbacks, or validation beyond what the task requires
-- Do not refactor or abstract beyond the scope of the request
-- Never include "Co-Authored-By: Claude" or any Claude trace in commit messages
+  - Do not auto-generate planning docs (analysis.md, plan.md, etc.) without being asked
+  - Do not duplicate in comments or docs what the code already makes obvious
+  - Do not add error handling, fallbacks, or validation beyond what the task requires
+  - Do not refactor or abstract beyond the scope of the request
+  - Never include "Co-Authored-By: Claude" or any Claude trace in commit messages
 ```
 
-**분석**:
-이 섹션은 **변경 없음** (현재 상태 유지)
+**분석**: **변경 없음** (유지)
 - **이유**: 각 규칙이 서로 다른 관점을 다룸
-  - Line 23: "error handling" = 방어적 프로그래밍 범위
-  - Line 24: "refactor/abstract" = 아키텍처 범위
-  - 겹치지만 **각각 중요한 서로 다른 경고**
-  - Line 21-25: 각각 독립적인 의미 전달
+  - Line 3: "error handling" = 방어적 프로그래밍 범위
+  - Line 4: "refactor/abstract" = 아키텍처 범위
+  - 각각 중요한 독립적인 경고
 
-#### After (제안 상태)
-```markdown
-## Prohibited Behaviors
-
-- Do not auto-generate planning docs (analysis.md, plan.md, etc.) without being asked
-- Do not duplicate in comments or docs what the code already makes obvious
-- Do not add error handling, fallbacks, or validation beyond what the task requires
-- Do not refactor or abstract beyond the scope of the request
-- Never include "Co-Authored-By: Claude" or any Claude trace in commit messages
-```
-
-**결과**: 
-- 변경 없음 (5줄 유지)
-- 각 규칙이 명확한 독립적 의미 유지 ✅
+**결과**: 5줄 유지 ✅
 
 ---
 
