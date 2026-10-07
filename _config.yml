@@ -51,3 +51,7 @@ social:
   name: JHKoder
   links:
     - https://github.com/JHKoder
+
+# Assets 설정
+include: ["assets"]
+keep_files: ["assets"]
