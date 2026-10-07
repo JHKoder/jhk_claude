@@ -97,6 +97,18 @@ def _conn(db_path: Path | None = None) -> sqlite3.Connection:
             size_after    INTEGER NOT NULL DEFAULT 0,
             file_count    INTEGER NOT NULL DEFAULT 0
         );
+
+        CREATE TABLE IF NOT EXISTS quality_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL UNIQUE,
+            task_id TEXT NOT NULL,
+            accuracy REAL,
+            first_pass INTEGER,
+            revision_count INTEGER,
+            complexity_score REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(session_id) REFERENCES runs(session_id)
+        );
     """)
     con.commit()
 
@@ -325,6 +337,85 @@ def repo_labels() -> list[str]:
     if not repos:
         return [_repo_key()]
     return [label for label, _ in repos]
+
+
+def init_quality_metrics_table():
+    """품질 메트릭 테이블 초기화"""
+    con = _conn()
+    migrations_dir = Path(__file__).parent.parent / "schema_migrations"
+    migration_file = migrations_dir / "001_add_quality_metrics.sql"
+    if migration_file.exists():
+        with open(migration_file) as f:
+            con.executescript(f.read())
+        con.commit()
+    con.close()
+
+
+def insert_quality_metric(session_id: str, task_id: str, accuracy: float | None = None,
+                         first_pass: int | None = None, revision_count: int | None = None,
+                         complexity_score: float | None = None) -> int:
+    """품질 메트릭 저장"""
+    con = _conn()
+    cur = con.execute("""
+        INSERT OR REPLACE INTO quality_metrics
+        (session_id, task_id, accuracy, first_pass, revision_count, complexity_score)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (session_id, task_id, accuracy, first_pass, revision_count, complexity_score))
+    con.commit()
+    row_id = cur.lastrowid
+    con.close()
+    return row_id
+
+
+def save_quality_metrics_on_stop(session_id: str, task_id: str) -> int | None:
+    """Stop 시점에 품질 메트릭 저장"""
+    import importlib.util
+    from pathlib import Path as _Path
+
+    _qm_path = _Path(__file__).parent.parent / "quality_metrics.py"
+    spec = importlib.util.spec_from_file_location("quality_metrics", _qm_path)
+    qm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(qm)
+
+    tasks_path = _Path(__file__).parent.parent / "config" / "tasks.json"
+    with open(tasks_path) as f:
+        task_config = next(
+            (t for t in json.load(f)["tasks"] if t["id"] == task_id),
+            None,
+        )
+
+    if not task_config:
+        return None
+
+    quality = qm.evaluate_session(
+        session_id,
+        task_id,
+        task_config["repo"],
+        "python -m pytest tests/ -v",
+        task_config["test_count"],
+    )
+    return insert_quality_metric(
+        quality["session_id"],
+        quality["task_id"],
+        quality["accuracy"],
+        quality["first_pass"],
+        quality["revision_count"],
+        quality["complexity_score"],
+    )
+
+
+def get_quality_metrics(session_id: str) -> dict | None:
+    """세션별 품질 메트릭 조회"""
+    con = _conn()
+    cur = con.execute("SELECT * FROM quality_metrics WHERE session_id = ?", (session_id,))
+    row = cur.fetchone()
+    if not row:
+        con.close()
+        return None
+    cols = [d[0] for d in cur.description]
+    result = dict(zip(cols, row))
+    con.close()
+    return result
 
 
 if __name__ == "__main__":

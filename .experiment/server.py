@@ -10,7 +10,8 @@ from urllib.parse import urlparse
 
 sys.path.insert(0, str(Path(__file__).parent / "collectors"))
 from store import (all_runs, all_runs_multi, repo_labels,
-                   get_claude_md_snapshots, get_config_versions, get_config_version, rate_run)
+                   get_claude_md_snapshots, get_config_versions, get_config_version, rate_run,
+                   DB_PATH)
 from analyzer import get_latest_analysis, run_analysis, get_analysis_history, get_analysis_by_id
 from version import check_update, local_version
 
@@ -112,6 +113,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path.startswith("/turns/"):
             sid = path[len("/turns/"):]
             self._serve_turns(sid)
+        elif path == "/api/quality-metrics":
+            self._serve_quality_metrics()
+        elif path == "/quality-comparison":
+            self._serve_quality_comparison()
         elif path.startswith("/rate/"):
             parts = path.strip("/").split("/")
             if len(parts) == 3:
@@ -345,6 +350,40 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_harness(self):
         html = _load_template("harness.html").encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(html)))
+        self.end_headers()
+        self.wfile.write(html)
+
+    def _serve_quality_metrics(self):
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                qm.task_id, qm.accuracy, qm.first_pass, qm.revision_count,
+                qm.complexity_score, s.output_tokens
+            FROM quality_metrics qm
+            LEFT JOIN runs s ON qm.session_id = s.session_id
+            ORDER BY qm.created_at DESC
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        metrics = []
+        for row in rows:
+            metrics.append({
+                "task_id": row[0],
+                "accuracy": row[1],
+                "first_pass": row[2],
+                "revision_count": row[3],
+                "complexity_score": row[4],
+                "tokens_used": row[5],
+            })
+        self._json({"metrics": metrics})
+
+    def _serve_quality_comparison(self):
+        html = _load_template("quality_comparison.html").encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(html)))

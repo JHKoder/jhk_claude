@@ -1,0 +1,170 @@
+name: Daily Experiment Report & Analysis
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 매일 자정 UTC (KST +9시 = 09:00)
+  workflow_dispatch:      # 수동 실행
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Generate Reports
+        run: |
+          python3 << 'EOF'
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / ".experiment"))
+from export.reports import export_reports
+result = export_reports('docs/experiments')
+print('✓ Reports generated successfully')
+for key, value in result.items():
+    if isinstance(value, dict):
+        for k, v in value.items():
+            print(f"  - {k}: {v}")
+    else:
+        print(f"  - {key}: {value}")
+EOF
+
+      - name: Commit & Push
+        run: |
+          git config user.name "Experiment Bot"
+          git config user.email "noreply@github.com"
+
+          # docs/experiments 변경 사항 확인
+          if git diff --quiet HEAD -- docs/experiments/; then
+            echo "No changes in reports"
+          else
+            git add docs/experiments/
+            git commit -m "docs(experiment): add daily analysis $(date +%Y-%m-%d)
+
+- 토큰 효율 분석
+- 품질 지표 리포트
+- 30일 추세 분석
+- 모델 성능 비교
+- JSON 데이터 저장" || echo "Nothing to commit"
+            git push
+          fi
+
+      - name: Generate Index
+        if: always()
+        run: |
+          python3 << 'EOF'
+import os
+from pathlib import Path
+from datetime import datetime
+
+output_dir = Path("docs/experiments")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+# 리포트 파일 목록
+reports = sorted(output_dir.glob("*.md"), reverse=True)
+
+md = """# 실험 분석 대시보드
+
+자동 생성된 Claude Code 세션 분석 리포트입니다.
+
+## 최신 리포트
+
+| 날짜 | 전체 리포트 | 효율성 | 품질 | 추세 | 모델 |
+|------|-----------|--------|------|------|------|
+"""
+
+# 날짜별로 그룹화
+dates = {}
+for report in reports:
+    if report.name.startswith("."):
+        continue
+    # 파일명에서 날짜 추출 (YYYY-MM-DD-*)
+    parts = report.name.split("-", 3)
+    if len(parts) >= 3:
+        date = f"{parts[0]}-{parts[1]}-{parts[2]}"
+        if date not in dates:
+            dates[date] = {}
+
+        report_type = report.name.split("-", 3)[-1].replace(".md", "")
+        dates[date][report_type] = report.name
+
+# 테이블 행 생성
+for date in sorted(dates.keys(), reverse=True)[:30]:  # 최근 30일
+    reports_by_date = dates[date]
+    date_link = reports_by_date.get("full-report", f"#")
+
+    row = f"| [{date}]({reports_by_date.get('full-report', '')}) |"
+    row += f" [{reports_by_date.get('full-report', '-')}]({reports_by_date.get('full-report', '')}) |"
+    row += f" [{reports_by_date.get('efficiency', '-')}]({reports_by_date.get('efficiency', '')}) |"
+    row += f" [{reports_by_date.get('quality', '-')}]({reports_by_date.get('quality', '')}) |"
+    row += f" [{reports_by_date.get('trends', '-')}]({reports_by_date.get('trends', '')}) |"
+    row += f" [{reports_by_date.get('models', '-')}]({reports_by_date.get('models', '')}) |\n"
+
+    md += row
+
+md += """
+## 분석 내용
+
+### 1. 일일 세션 (daily)
+- Claude Code 세션별 토큰 사용량
+- 품질 점수, 컴파일 성공 여부
+- 세션 ID, 러너 정보
+
+### 2. 토큰 효율 (efficiency)
+- 총 Input/Output Token
+- 캐시 히트율
+- 비용 분석
+- 토큰당 품질 점수
+
+### 3. 품질 지표 (quality)
+- 테스트 통과율 (평균/중앙값)
+- 컴파일 성공율
+- 러너별 성능 비교
+- 코드 변경량 분석
+
+### 4. 추세 분석 (trends)
+- 일별 Run 수
+- 평균 품질 추이
+- 토큰 사용량 추이
+- 비용 추이 (30일)
+
+### 5. 모델 성능 (models)
+- 모델별 실행 횟수
+- 모델별 평균 품질
+- 모델별 평균 실행 시간
+- 모델별 비용
+
+## 데이터 형식
+
+- **Markdown (.md)**: 가독성 좋은 테이블 형식
+- **JSON (.json)**: 프로그래매틱 분석용
+
+## 업데이트 스케줄
+
+- **일일**: 자정 UTC (서울 시간 09:00)
+- **수동**: GitHub Actions에서 "Run workflow" 클릭
+
+---
+
+*최종 업데이트: """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "*"
+
+index_file = output_dir / "index.md"
+index_file.write_text(md, encoding="utf-8")
+print(f"✓ Index generated: {index_file}")
+EOF
+        fi
+
+      - name: Commit Index
+        run: |
+          git add docs/experiments/index.md
+          git commit -m "docs(experiment): update index" || true
+          git push || true

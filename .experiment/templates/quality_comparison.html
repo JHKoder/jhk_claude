@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Code Quality Comparison</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui; margin: 20px; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .comparison-table th, .comparison-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .comparison-table th { background-color: #f5f5f5; }
+        .quality-score { font-weight: bold; }
+        .perfect { color: green; }
+        .partial { color: orange; }
+        .failed { color: red; }
+        .chart-container { width: 100%; max-width: 800px; margin: 30px 0; }
+    </style>
+</head>
+<body>
+    <h1>Code Quality vs Token Usage</h1>
+
+    <div class="chart-container">
+        <canvas id="qualityChart"></canvas>
+    </div>
+
+    <h2>Task Comparison</h2>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Task</th>
+                <th>Complexity</th>
+                <th>Accuracy</th>
+                <th>First Pass</th>
+                <th>Revisions</th>
+                <th>Tokens Used</th>
+                <th>Quality/Token</th>
+            </tr>
+        </thead>
+        <tbody id="dataTable">
+            <tr><td colspan="7" style="text-align: center;">로딩 중...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        fetch('/api/quality-metrics')
+            .then(r => r.json())
+            .then(data => {
+                // 테이블 채우기
+                const tbody = document.getElementById('dataTable');
+                tbody.innerHTML = '';
+
+                data.metrics.forEach(m => {
+                    const row = tbody.insertRow();
+                    const accuracy_class = m.accuracy === 100 ? 'perfect' :
+                                          m.accuracy >= 50 ? 'partial' : 'failed';
+
+                    row.innerHTML = `
+                        <td>${m.task_id}</td>
+                        <td>${m.complexity_score}</td>
+                        <td class="${accuracy_class}">${m.accuracy.toFixed(1)}%</td>
+                        <td>${m.first_pass ? '✓' : '✗'}</td>
+                        <td>${m.revision_count}</td>
+                        <td>${m.tokens_used || 'N/A'}</td>
+                        <td>${(m.accuracy / (m.tokens_used / 1000 || 1)).toFixed(2)}</td>
+                    `;
+                });
+
+                // 차트 그리기
+                const ctx = document.getElementById('qualityChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Task Performance',
+                            data: data.metrics.map(m => ({
+                                x: m.tokens_used || 0,
+                                y: m.accuracy,
+                                r: m.complexity_score * 2
+                            })),
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: { title: { display: true, text: 'Tokens Used' } },
+                            y: { title: { display: true, text: 'Accuracy (%)' }, max: 100 }
+                        }
+                    }
+                });
+            });
+    </script>
+</body>
+</html>

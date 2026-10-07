@@ -90,6 +90,32 @@ exp run <name> <claude|opencode> [task-id]
 
 ---
 
+## 품질 비교 (새로운 기능)
+
+### 시작하기
+```bash
+# 1. 측정할 작업 선택 (Task A/B/C)
+exp list  # 사용 가능한 작업 목록
+
+# 2. Claude Code 세션에서 작업 실행
+# "Task A를 구현해줘" 등
+
+# 3. 대시보드에서 결과 확인
+exp serve
+# http://localhost:7788/quality-comparison
+```
+
+### 지표 설명
+- **Accuracy**: 테스트 통과율 (%)
+- **First Pass**: 첫 응답에서 완성 (1=yes, 0=no)
+- **Complexity**: 작업 난이도 (1-10)
+- **Quality/Token**: 토큰 대비 품질 효율
+
+### 비교 전략
+Task A (간단) → Task B (중간) → Task C (복잡) 순으로 실행하여 난이도별 효율 추적.
+
+---
+
 ## 파일 구조
 
 ```

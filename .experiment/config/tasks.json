@@ -1,14 +1,34 @@
-[
-  {
-    "id": "task-001",
-    "category": "example",
-    "description": "예시 과업 — 실제 실험 과업으로 교체하세요",
-    "prompt": "현재 프로젝트의 PaymentService에서 트랜잭션 경계가 올바른지 확인하고, N+1 문제가 있으면 수정하세요."
-  },
-  {
-    "id": "task-model-compare",
-    "category": "code-review",
-    "description": "모델 비교용 — PaymentService 코드 리뷰 + 개선 제안",
-    "prompt": "src/main/java/com/jangingmall/backend/payment/application/PaymentService.java 파일을 읽고, 다음을 수행하세요:\n1. 트랜잭션 경계가 올바른지 검토\n2. N+1 쿼리 가능성이 있는 지점 식별\n3. 발견된 문제점이 있으면 수정하고, 없으면 코드가 올바른 이유를 설명하세요.\n단위 테스트는 작성하지 않아도 됩니다."
-  }
-]
+{
+  "tasks": [
+    {
+      "id": "task_a",
+      "name": "Task A: 간단한 리팩토링",
+      "description": "중복된 파서 함수 통합",
+      "complexity": 3,
+      "expected_duration_minutes": 25,
+      "test_count": 4,
+      "project_type": "python",
+      "repo": ".experiment/test_cases/task_a"
+    },
+    {
+      "id": "task_b",
+      "name": "Task B: 기능 구현",
+      "description": "캐싱 레이어 추가",
+      "complexity": 6,
+      "expected_duration_minutes": 50,
+      "test_count": 4,
+      "project_type": "python",
+      "repo": ".experiment/test_cases/task_b"
+    },
+    {
+      "id": "task_c",
+      "name": "Task C: 아키텍처 변경",
+      "description": "서비스 계층 분리",
+      "complexity": 9,
+      "expected_duration_minutes": 90,
+      "test_count": 8,
+      "project_type": "python",
+      "repo": ".experiment/test_cases/task_c"
+    }
+  ]
+}

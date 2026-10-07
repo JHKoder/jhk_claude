@@ -80,6 +80,72 @@ def latest_session_id(project_root: str | None = None) -> str | None:
     return files[0].stem if files else None
 
 
+def extract_task_id_from_session(log_path: str) -> str | None:
+    """세션 JSONL에서 작업 ID 추출"""
+    p = Path(log_path)
+    if not p.exists():
+        return None
+    for line in p.read_text(errors="ignore").splitlines():
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if d.get("type") != "user":
+            continue
+        msg = d.get("message", {})
+        content = ""
+        if isinstance(msg, dict):
+            raw = msg.get("content", "")
+            if isinstance(raw, str):
+                content = raw.lower()
+            elif isinstance(raw, list):
+                content = " ".join(
+                    p.get("text", "") for p in raw if isinstance(p, dict)
+                ).lower()
+        for task_id in ["task_a", "task_b", "task_c"]:
+            if task_id in content:
+                return task_id
+        if content:
+            break
+    return None
+
+
+def parse_session_with_quality(session_id: str, project_root: str | None = None,
+                               transcript_path: str | None = None) -> dict:
+    """세션 로그 + 품질 평가 파싱"""
+    import importlib.util, sys as _sys
+    from pathlib import Path as _Path
+
+    session_data = parse_session(session_id, project_root, transcript_path)
+
+    log_path = transcript_path or str(
+        _proj_log_dir(project_root) / f"{session_id}.jsonl"
+    )
+    task_id = extract_task_id_from_session(log_path)
+
+    if task_id:
+        # quality_metrics는 .experiment/ 루트에 있음
+        _qm_path = _Path(__file__).parent.parent / "quality_metrics.py"
+        spec = importlib.util.spec_from_file_location("quality_metrics", _qm_path)
+        qm = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(qm)
+
+        with open(_Path(__file__).parent.parent / "config" / "tasks.json") as f:
+            tasks = json.load(f).get("tasks", [])
+        task_config = next((t for t in tasks if t["id"] == task_id), None)
+        if task_config:
+            quality = qm.evaluate_session(
+                session_id,
+                task_id,
+                task_config.get("repo", "."),
+                "python -m pytest tests/ -v",
+                task_config.get("test_count", 4),
+            )
+            return {**session_data, "quality": quality}
+
+    return session_data
+
+
 if __name__ == "__main__":
     sid = sys.argv[1] if len(sys.argv) > 1 else latest_session_id()
     if not sid:
