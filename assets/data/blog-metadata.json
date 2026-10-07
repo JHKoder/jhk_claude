@@ -56,6 +56,23 @@
       "status": "published"
     },
     {
+      "id": "harness-before-after",
+      "title": "Claude 하네스 Before/After 상세 비교",
+      "date": "2026-10-07",
+      "category": ["efficiency", "quality"],
+      "tags": ["#quality", "#optimization"],
+      "summary": "CLAUDE.md의 구체적인 추가/제거/수정 항목 및 이유",
+      "metrics": {
+        "rules_removed": 3,
+        "terms_added": 12,
+        "sections_modified": 2,
+        "clarity_improvement": "+19%"
+      },
+      "url": "research/2026-10-07-harness-before-after/",
+      "featured": false,
+      "status": "published"
+    },
+    {
       "id": "harness-engineering",
       "title": "Claude 하네스 엔지니어링 개요",
       "date": "2026-10-07",
