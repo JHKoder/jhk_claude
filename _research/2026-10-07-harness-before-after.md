@@ -484,8 +484,20 @@ After:   명확하고 검증된 지침
 ✅ **더 정확**: 성공률 92% → 100% (+8%)  
 ✅ **더 빠름**: 읽기 시간 -40%
 
-### 배포 상태
+---
 
-🚀 **Production 배포 완료**  
-📍 위치: `/Users/kang/.claude/CLAUDE.md`  
-✅ 검증: 100% 통과
+## 📍 배포 상태
+
+### 하네스 파일 (실제 설정)
+🚀 **Production 적용 완료**  
+📁 위치: `/Users/kang/.claude/CLAUDE.md`  
+✅ 검증: 100% 통과 (실제 Claude Code 세션에서 사용 중)
+
+### 분석 문서 (이 문서)
+📚 **GitHub Pages 배포 완료**  
+🔗 위치: https://jhkoder.github.io/jhk_claude/research/2026-10-07-harness-before-after/  
+✅ 웹사이트에서 조회 가능
+
+### 용어사전 (참고 자료)
+📋 **저장 위치**: `/Users/kang/.claude-harness-analysis/variant-b-glossary.json`  
+✅ JSON 형식으로 기계 가능 (프로그래밍 도구에서 파싱 가능)
